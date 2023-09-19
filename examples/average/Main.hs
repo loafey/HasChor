@@ -37,7 +37,17 @@ averageSalary = do
   r2 <- (person2, \_ -> return 90 :: IO Int) ~~> server
   r3 <- (person3, \_ -> return 75 :: IO Int) ~~> server
 
-  locally server $ \un -> putStrLn $ show $ (sum [un r1, un r2, un r3]) `div` 3
+  avg <- locally server $ \un -> return $ (sum [un r1, un r2, un r3]) `div` 3
+
+  c1 <- (server, avg) ~> person1
+  c2 <- (server, avg) ~> person2
+  c3 <- (server, avg) ~> person3
+
+  locally person1 $ \un -> putStrLn $ show $ un c1
+  locally person2 $ \un -> putStrLn $ show $ un c2
+  locally person3 $ \un -> putStrLn $ show $ un c3
+
+  locally server $ \_ -> return ()
 
 main :: IO ()
 main = do
