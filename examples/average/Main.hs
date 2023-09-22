@@ -19,6 +19,19 @@ open 4 terminals, and execute
 
 -}
 
+{-
+
+API:
+
+type Unwrap l = forall a. a @ l -> a
+locally :: KnownSymbol l                                   =>  Proxy l           -> (Unwrap l -> m a)              -> Choreo m (a @ l)
+(~>)    :: (Show a, Read a, KnownSymbol l, KnownSymbol l') => (Proxy l, a @ l)   -> Proxy l'  -> Choreo m (a @ l')
+(~~>)   :: (Show a, Read a, KnownSymbol l, KnownSymbol l') => (Proxy l, Unwrap l -> m a)      -> Proxy l'          -> Choreo m (a @ l')
+cond    :: (Show a, Read a, KnownSymbol l)                 => (Proxy l, a @ l)   -> (a        -> Choreo m b)       -> Choreo m b
+cond'   :: (Show a, Read a, KnownSymbol l)                 => (Proxy l, Unwrap l -> m a)      -> (a -> Choreo m b) -> Choreo m b
+
+-}
+
 person1 :: Proxy "person1"
 person1 = Proxy
 
