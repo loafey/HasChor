@@ -31,6 +31,7 @@ they need to be *fully applied* before they get sent, so perhaps that is a nice 
 
 Note from Robert: we don't actually do that much typeclass magic, and we also enforce that functions are fully applied before we invoke the enclave.
 We can not serialize and transmit functions, so they must be fully applied.
+This `data Request` belongs to one of their examples. Whereas we require a `Binary` instance to communicate, they require `(Show a, Read a)` to do the same thing. It is essentially the same solution, but depending on the instance I guess that `Binary` may be more space efficient and faster.
 
 - We should ignore conditions for the moment, i.e., the constructor cond in
   HasChor So things that we could explore.
