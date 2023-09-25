@@ -78,6 +78,37 @@ However, that will not work since `(~~>)` and `(~>)` have a `Show a` and `Read
 a` constraint. So, such constrains played a role similar to `Binary a` in
 HasTEE.
 
+## Simple protocol for the clean-room DSL 
+
+
+### Actors
+
+- Public server (responsible of the aggrement of data + analytics)
+- Secret server (the one doing the aggregations and collecting all the data)
+- Two hostpitals p1, and p2 
+
+### Protocol
+
+```haskell 
+    p1: sch1 :: DataSchema -> PublicServer 
+    p2: sch2 :: DataSchema -> PublicServer 
+
+    PublicServer: (sch1,sch2) -> p1 
+    PublicServer: (sch1,sch2) -> p2     
+
+    -- How to aggregate the schemas can be done in many ways.
+    p1: (f: (sch1 + sch2) -> Result1) -> PublicServer   
+    p2: (g: (sch1 + sch2) -> Result2) -> PublicServer 
+
+    PublicServer: [f,g] -> SecretServer 
+
+    p1 :: data1 :: sch1 -> SecretServer 
+    p2 :: data2 :: sch2 -> SecretServer 
+
+    SecretSever: Result1 -> p1 
+    SecretSever: Result2 -> p2 
+```
+
 
 ## Ideas to try
 
