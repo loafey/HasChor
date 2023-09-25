@@ -36,6 +36,49 @@ This `data Request` belongs to one of their examples. Whereas we require a `Bina
 - We should ignore conditions for the moment, i.e., the constructor cond in
   HasChor So things that we could explore.
 
+## Code splitting 
+
+HasChor indeed compiles into different pieces of code. If we looked into
+`Choreo.hs`, we can see the part where local computations are only compile to
+the right projection. So, when compiling, you indicate the location by the
+command line from cabal. 
+
+```haskell
+    handler (Local l m)
+      | toLocTm l == l' = wrap <$> run (m unwrap)  
+      | otherwise       = return Empty
+```
+
+If we are compiling `l'` and that is the location of the local computation, then you produce 
+ 
+```haskell
+wrap <$> run (m unwrap)
+-- == 
+Wrap $ Run (m unwrap)
+```
+
+otherwise, that code becomes 
+
+```haskell
+return Empty 
+```
+
+## Sending nested location-decorated values or computations
+
+```haskell
+
+p1 :: (Int @ "person1")
+p1 = wrap 42 
+
+nested :: (Int @ "person1") @ "person1"
+nested = wrap p1 
+```
+
+However, that will not work since `(~~>)` and `(~>)` have a `Show a` and `Read
+a` constraint. So, such constrains played a role similar to `Binary a` in
+HasTEE.
+
+
 ## Ideas to try
 
 1. How do we use all the proper setups using HasChor, i.e., how do we split and enforce that secret are stored in the enclave vs. the client.
@@ -60,6 +103,8 @@ match.
 Whereas we split our programs at compile time (digging out the stuff not relevant to a particular program), they pass in a runtime value to choose
 which branch to take. This means that **all code exists on all endpoints**. This is not good for security, where you don't want the secure code to
 exist on the non-secure client.
+
+Ale: Robert, they do split the code too. See my updated comment above. 
 
 We use two monads to indicate location, but they parameterised values with phantom types to do this. This is a nice generalization, but the compile
 time element is still missing from this. We would still wish to physically partition the applications, not just combine several in a
