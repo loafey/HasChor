@@ -55,7 +55,11 @@ epp c l' = interpFreer handler c
   where
     handler :: ChoreoSig m a -> Network m a
     handler (Local l m)
-      | toLocTm l == l' = wrap <$> run (m unwrap)
+      | toLocTm l == l' = wrap <$> run (m unwrap)  -- this is a local computation, they are indeed 
+                                                   -- projecting code. 
+                                                   -- Question: there is no restriction about what you send. 
+                                                   -- What happens if what you send contains suspended computations with secret data? 
+                                                   -- What happens with nested location-decorated values? 
       | otherwise       = return Empty
     handler (Comm s a r)
       | toLocTm s == l' = send (unwrap a) (toLocTm r) >> return Empty
@@ -64,9 +68,12 @@ epp c l' = interpFreer handler c
     handler (Cond l a c)
       | toLocTm l == l' = broadcast (unwrap a) >> epp (c (unwrap a)) l'
       | otherwise       = recv (toLocTm l) >>= \x -> epp (c x) l'
+     
+compile :: [LocTm] -> Choreo m a -> [(LocTm, Network m a)]
+compile ls p = map (\l -> (l, epp p l)) ls 
+
 
 -- * Choreo operations
-
 -- | Perform a local computation at a given location.
 locally :: KnownSymbol l
         => Proxy l           -- ^ Location performing the local computation.

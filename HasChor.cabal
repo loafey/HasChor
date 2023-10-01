@@ -22,6 +22,7 @@ library
         Choreography.Network.Http
         Choreography.Network.Local
         Control.Monad.Freer
+        GenData
     build-depends:
         base ^>= 4.16.4.0,
         bytestring ^>= 0.11.4.0,
@@ -30,7 +31,9 @@ library
         servant-client ^>= 0.19,
         servant-server ^>= 0.19.2,
         unordered-containers ^>= 0.2.19.1,
-        warp ^>= 3.3.23
+        warp ^>= 3.3.23, 
+        sop-core
+
 
 executable bank-2pc
     hs-source-dirs:   examples/bank-2pc
@@ -59,6 +62,17 @@ executable average-salary
         HasChor,
         base ^>= 4.16.4.0,
         time ^>= 1.11.1.1
+
+executable clean-room
+    hs-source-dirs:   examples/clean-room
+    main-is:          Main.hs
+    default-language: GHC2021
+    build-depends:
+        HasChor,
+        base ^>= 4.16.4.0,
+        time ^>= 1.11.1.1, 
+        sop-core
+
 
 executable bookseller-1-simple
     hs-source-dirs:   examples/bookseller-1-simple

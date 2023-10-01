@@ -8,6 +8,8 @@ import Choreography
 import Data.Proxy
 import Data.Time
 import System.Environment
+import Choreography.Location (wrap)
+import Data.Functor.Identity (Identity)
 
 {-
 
@@ -44,8 +46,24 @@ person3 = Proxy
 server :: Proxy "server"
 server = Proxy
 
+p1 :: (Int @ "person1")
+p1 = wrap 42 
+
+nested :: (Int @ "person1") @ "person1"
+nested = wrap p1 
+
 averageSalary :: Choreo IO (() @ "server")
 averageSalary = do
+  -- r1 <- (person1, \un -> return (un p1) :: IO Int) ~~> server    
+  -- r1 <- (person1, \un -> return (un nested) :: IO (Int @ "person1")) ~~>
+  -- server Here, we can see that (~~>) works with types that you can show, so
+  -- you cannot send nested location-labeled values, nor send computations. This
+  -- is pretty similar to our `Binary` restriction. Idea: we could support
+  -- nested location, and when you send something of (Int @ "ale") @ "abi" you
+  -- just send the integer encrypted but we need to indicate the intended reader, e.g., 
+  -- (Int @ "ale" to "sever") @ "abi". 
+
+
   r1 <- (person1, \_ -> return 50 :: IO Int) ~~> server
   r2 <- (person2, \_ -> return 90 :: IO Int) ~~> server
   r3 <- (person3, \_ -> return 75 :: IO Int) ~~> server
