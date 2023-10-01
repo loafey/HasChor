@@ -11,7 +11,7 @@ import Choreography
 import Data.Proxy
 import Data.Time
 import System.Environment
-import Choreography.Location (wrap)
+import Choreography.Location (wrap, unwrap)
 import Data.Functor.Identity (Identity)
 import Data.SOP ( K(..), NP(..), I (I), All )
 import GHC.Generics ( (:*:) (..) )
@@ -116,15 +116,27 @@ publicServer = do
   tablesh2 <- (pserver, merged) ~> h2
   return ()
 
+gpublicServer :: All KnownSymbol ls => NP Proxy ls -> Choreo IO ()
+gpublicServer (p@Proxy :* ls)= do
+     spec <- locally p $ \un -> do
+        spec <- getLine
+        let w    = read spec :: [(String,String)]
+        return w 
+     reifySchema (unwrap spec) $ \ts -> do   -- Here, we need to extend HasChor, 
+                                             -- Where is the reification happening? 
+                                             -- I will say in the client
+        pt1 <- (p, wrap ts) ~> pserver 
+        gpublicServer ls 
+gpublicServer Nil = return ()
 
+{- 
+  ReifySchema :: (Show a, Read a, KnownSymbol l)
+       => Proxy l
+       -> [(String,String)] @ l
+       -> (forall ts . Table ts -> Choreo m b)
+       -> ChoreoSig m b
 
--- gpublicServer :: All KnownSymbol ls => NP Proxy ls -> Choreo IO ()
--- gpublicServer (p@Proxy :* ls)= do
---     t1 <- locally p $ \un -> do
---        spec <- getLine
---        let w    = read spec :: [(String,String)]
---            tabX = reifySchema w TableX 
---        return tabX   
---     pt1 <- (p, t1) ~> pserver 
---     return ()
-
+    handler (ReifySchema p spec k)
+      | toLocTm l == l' = reifySchema (unwrap spec) (epp . k) 
+      | otherwise       = return Empty 
+-}
