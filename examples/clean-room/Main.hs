@@ -17,7 +17,7 @@ import Data.SOP ( K(..), NP(..), I (I), All )
 import GHC.Generics ( (:*:) (..) )
 import GenData
 import GHC.TypeLits (KnownSymbol)
-import Choreography.Choreo (reify)
+import Choreography.Choreo (reify, TableX (..))
 
 
 main :: IO ()
@@ -117,6 +117,7 @@ publicServer = do
   tablesh2 <- (pserver, merged) ~> h2
   return ()
 
+
 gpublicServer :: All KnownSymbol ls => NP Proxy ls -> Choreo IO ()
 gpublicServer (p@Proxy :* ls)= do
      spec <- locally p $ \un -> do
@@ -131,16 +132,18 @@ gpublicServer (p@Proxy :* ls)= do
 gpublicServer Nil = return ()
 
 
--- gServer :: All KnownSymbol ls => NP Proxy ls -> Choreo IO [TableX]
--- gServer (p@Proxy :* ls) = do
---      spec <- locally p $ \un -> do
---         spec <- getLine
---         return (read spec :: [(String,String)]) 
---      reify p spec \ts -> do 
---       pt1 <- (p, ts) ~> pserver 
---       let rs = gServer ls 
---       return (pt1 : rs)      
--- gServer Nil = return []
+-- Send all the schemas to the Public server 
+gServer :: All KnownSymbol ls => NP Proxy ls -> Choreo IO [TableX]
+gServer (p@Proxy :* ls) = do
+     spec <- locally p $ \un -> do
+        spec <- getLine
+        return (read spec :: [(String,String)]) 
+     reify p spec \ts -> do 
+      pt1 <- (p, ts) ~> pserver 
+      rs  <- gServer ls 
+      return (TableX pt1 : rs)      
+gServer Nil = return []
+
 
 
 {- 

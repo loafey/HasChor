@@ -144,3 +144,5 @@ reify :: KnownSymbol l
       -> Choreo m r
 reify p spec k = toFreer $ ReifyTable p spec k 
 
+data TableX where
+  TableX :: (Dummy ts, KnownSymbol l) => Table ts @ l -> TableX 
