@@ -17,7 +17,7 @@ import Data.SOP ( K(..), NP(..), I (I), All )
 import GHC.Generics ( (:*:) (..) )
 import GenData
 import GHC.TypeLits (KnownSymbol)
-import Choreography.Choreo (reify, TableX (..))
+import Choreography.Choreo (reify, TableX (..), rewrap)
 
 
 main :: IO ()
@@ -51,6 +51,8 @@ sch1 = Table $ K "id" :*: STInt :* K "covid" :*: STBool :* Nil
 
 sch2 :: Table '[ 'TInt, 'TInt ]
 sch2 = Table $ K "id" :*: STInt :* K "age" :*: STInt :* Nil
+
+ttt = merge' sch1 sch2 
 
 h1 :: Proxy "h1"
 h1 = Proxy
@@ -112,11 +114,10 @@ publicServer :: Choreo IO ()
 publicServer = do
   table1 <- (h1, wrap sch1) ~> pserver
   table2 <- (h2, wrap sch2) ~> pserver
-  merged <- locally pserver $ \un -> return $ merge (un table1) (un table2)
+  merged <- locally pserver $ \un -> return $ merge' (un table1) (un table2)
   tablesh1 <- (pserver, merged) ~> h1
   tablesh2 <- (pserver, merged) ~> h2
   return ()
-
 
 gpublicServer :: All KnownSymbol ls => NP Proxy ls -> Choreo IO ()
 gpublicServer (p@Proxy :* ls)= do
@@ -133,18 +134,25 @@ gpublicServer Nil = return ()
 
 
 -- Send all the schemas to the Public server 
-gServer :: All KnownSymbol ls => NP Proxy ls -> Choreo IO [TableX]
-gServer (p@Proxy :* ls) = do
+gServer :: (All KnownSymbol ls, KnownSymbol l') => NP Proxy ls -> Proxy l' -> Choreo IO [TableX @ l']
+gServer (p@Proxy :* ls) s = do
      spec <- locally p $ \un -> do
         spec <- getLine
         return (read spec :: [(String,String)]) 
      reify p spec \ts -> do 
-      pt1 <- (p, ts) ~> pserver 
-      rs  <- gServer ls 
-      return (TableX pt1 : rs)      
-gServer Nil = return []
+      pt1  <- (p, ts) ~> s 
+      pt1' <- rewrap s pt1 
+      rs   <- gServer ls s 
+      return (pt1' : rs)      
+gServer Nil s = return []
 
+mergeX :: TableX -> TableX -> TableX 
+mergeX (TableX t) (TableX t') = TableX (merge' t t') 
 
+aggregate :: KnownSymbol l => Proxy l -> [TableX @ l] -> Choreo IO (TableX @ l)
+aggregate s (tx : txs) = do 
+   rest <- aggregate s txs 
+   locally s $ \un -> return $ mergeX (un tx) (un rest)  
 
 {- 
   ReifySchema :: (Show a, Read a, KnownSymbol l)

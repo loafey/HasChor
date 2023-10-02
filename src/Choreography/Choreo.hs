@@ -1,6 +1,7 @@
 {-# LANGUAGE GADTs              #-}
 {-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 
 -- | This module defines `Choreo`, the monad for writing choreographies.
 module Choreography.Choreo where
@@ -145,4 +146,9 @@ reify :: KnownSymbol l
 reify p spec k = toFreer $ ReifyTable p spec k 
 
 data TableX where
-  TableX :: (Dummy ts, KnownSymbol l) => Table ts @ l -> TableX 
+  TableX :: Table ts -> TableX  
+
+rewrap :: (KnownSymbol l, Dummy ts) => Proxy l -> Table ts @ l -> Choreo IO (TableX @ l) 
+rewrap l t = locally l (\un -> return (TableX (un t)))
+
+
