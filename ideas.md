@@ -63,6 +63,8 @@ otherwise, that code becomes
 return Empty 
 ```
 
+Robert: This happens at runtime and not compile time, so the compiled program (the executable) has to keep the whole choreography around, as you don't yet know which partition you wish to project. Abi and I tried to hade a secret string on one of the locations, and we verified by disassembling the code that the secret string is not compiled away, and that it ends up in the final executable. We also verified that they are not partitioned by compiling the program just once, but still executing a choreography that involves four parties. You just run the executable with different command-line arguments to indicate which partition you wish to project.
+
 ## Sending nested location-decorated values or computations
 
 ```haskell
