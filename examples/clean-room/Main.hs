@@ -17,6 +17,7 @@ import Data.SOP ( K(..), NP(..), I (I), All )
 import GHC.Generics ( (:*:) (..) )
 import GenData
 import GHC.TypeLits (KnownSymbol)
+import Choreography.Choreo (reify)
 
 
 main :: IO ()
@@ -128,6 +129,19 @@ gpublicServer (p@Proxy :* ls)= do
         pt1 <- (p, wrap ts) ~> pserver 
         gpublicServer ls 
 gpublicServer Nil = return ()
+
+
+-- gServer :: All KnownSymbol ls => NP Proxy ls -> Choreo IO [TableX]
+-- gServer (p@Proxy :* ls) = do
+--      spec <- locally p $ \un -> do
+--         spec <- getLine
+--         return (read spec :: [(String,String)]) 
+--      reify p spec \ts -> do 
+--       pt1 <- (p, ts) ~> pserver 
+--       let rs = gServer ls 
+--       return (pt1 : rs)      
+-- gServer Nil = return []
+
 
 {- 
   ReifySchema :: (Show a, Read a, KnownSymbol l)

@@ -1,5 +1,6 @@
 {-# LANGUAGE GADTs              #-}
 {-# LANGUAGE ImpredicativeTypes #-}
+{-# LANGUAGE DataKinds #-}
 
 -- | This module defines `Choreo`, the monad for writing choreographies.
 module Choreography.Choreo where
@@ -10,6 +11,7 @@ import Control.Monad.Freer
 import Data.List
 import Data.Proxy
 import GHC.TypeLits
+import GenData (Table, SchemaU, reifySchema, Dummy)
 
 -- * The Choreo monad
 
@@ -37,6 +39,12 @@ data ChoreoSig m a where
        -> (a -> Choreo m b)
        -> ChoreoSig m b
 
+  ReifyTable :: KnownSymbol l
+             => Proxy l
+             -> SchemaU @ l
+             -> (forall ts . Dummy ts => Table ts @ l -> Choreo m r)
+             -> ChoreoSig m r
+
 -- | Monad for writing choreographies.
 type Choreo m = Freer (ChoreoSig m)
 
@@ -48,6 +56,7 @@ runChoreo = interpFreer handler
     handler (Local _ m)  = wrap <$> m unwrap
     handler (Comm _ a _) = return $ (wrap . unwrap) a
     handler (Cond _ a c) = runChoreo $ c (unwrap a)
+    handler (ReifyTable _ spec k) = reifySchema (unwrap spec) (runChoreo . k . wrap)
 
 -- | Endpoint projection.
 epp :: Choreo m a -> LocTm -> Network m a
@@ -68,9 +77,15 @@ epp c l' = interpFreer handler c
     handler (Cond l a c)
       | toLocTm l == l' = broadcast (unwrap a) >> epp (c (unwrap a)) l'
       | otherwise       = recv (toLocTm l) >>= \x -> epp (c x) l'
-     
+    handler (ReifyTable l spec k)
+      | toLocTm l == l' = reifySchema (unwrap spec) (\ts -> epp (k (Wrap ts)) l')
+      | otherwise       = epp (k @'[] Empty) l'
+
+
+
+
 compile :: [LocTm] -> Choreo m a -> [(LocTm, Network m a)]
-compile ls p = map (\l -> (l, epp p l)) ls 
+compile ls p = map (\l -> (l, epp p l)) ls
 
 
 -- * Choreo operations
@@ -121,3 +136,11 @@ cond' :: (Show a, Read a, KnownSymbol l)
 cond' (l, m) c = do
   x <- l `locally` m
   cond (l, x) c
+
+reify :: KnownSymbol l
+      => Proxy l
+      -> SchemaU @ l
+      -> (forall ts . Dummy ts => Table ts @ l -> Choreo m r)
+      -> Choreo m r
+reify p spec k = toFreer $ ReifyTable p spec k 
+
