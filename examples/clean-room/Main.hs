@@ -4,6 +4,7 @@
 {-# HLINT ignore "Use newtype instead of data" #-}
 {-# LANGUAGE GADTs #-}
 {-# OPTIONS_GHC -Wno-overlapping-patterns #-}
+{-# HLINT ignore "Use join" #-}
 
 module Main where
 
@@ -52,7 +53,7 @@ sch1 = Table $ K "id" :*: STInt :* K "covid" :*: STBool :* Nil
 sch2 :: Table '[ 'TInt, 'TInt ]
 sch2 = Table $ K "id" :*: STInt :* K "age" :*: STInt :* Nil
 
-ttt = merge' sch1 sch2 
+ttt = merge' sch1 sch2
 
 h1 :: Proxy "h1"
 h1 = Proxy
@@ -124,12 +125,12 @@ gpublicServer (p@Proxy :* ls)= do
      spec <- locally p $ \un -> do
         spec <- getLine
         let w    = read spec :: [(String,String)]
-        return w 
+        return w
      reifySchema (unwrap spec) $ \ts -> do   -- Here, we need to extend HasChor, 
                                              -- Where is the reification happening? 
                                              -- I will say in the client
-        pt1 <- (p, wrap ts) ~> pserver 
-        gpublicServer ls 
+        pt1 <- (p, wrap ts) ~> pserver
+        gpublicServer ls
 gpublicServer Nil = return ()
 
 
@@ -138,21 +139,36 @@ gServer :: (All KnownSymbol ls, KnownSymbol l') => NP Proxy ls -> Proxy l' -> Ch
 gServer (p@Proxy :* ls) s = do
      spec <- locally p $ \un -> do
         spec <- getLine
-        return (read spec :: [(String,String)]) 
-     reify p spec \ts -> do 
-      pt1  <- (p, ts) ~> s 
-      pt1' <- rewrap s pt1 
-      rs   <- gServer ls s 
-      return (pt1' : rs)      
+        return (read spec :: [(String,String)])
+     reify p spec \ts -> do
+      pt1  <- (p, ts) ~> s
+      pt1' <- rewrap s pt1
+      rs   <- gServer ls s
+      return (pt1' : rs)
 gServer Nil s = return []
 
-mergeX :: TableX -> TableX -> TableX 
-mergeX (TableX t) (TableX t') = TableX (merge' t t') 
+mergeX :: TableX -> TableX -> TableX
+mergeX (TableX t) (TableX t') = TableX (merge' t t')
 
 aggregate :: KnownSymbol l => Proxy l -> [TableX @ l] -> Choreo IO (TableX @ l)
-aggregate s (tx : txs) = do 
-   rest <- aggregate s txs 
-   locally s $ \un -> return $ mergeX (un tx) (un rest)  
+aggregate s (tx : txs) = do
+   rest <- aggregate s txs
+   locally s $ \un -> return $ mergeX (un tx) (un rest)
+
+{- It does not type-check 
+
+-- Send all the schemas to the Public server 
+gS :: (All KnownSymbol ls, KnownSymbol l')
+   => NP Proxy ls -> Proxy l' -> (forall ff. Table ff -> r) -> Choreo IO (r @ l')
+gS (p@Proxy :* ls) s k = do
+     spec <- locally p $ \un -> do
+        spec <- getLine
+        return (read spec :: [(String,String)])
+     reify p spec $ \ts -> do
+      pt1  <- (p, ts) ~> s
+      m <- gS ls s $ \tsrs -> locally s $ \un -> return @IO $ k (merge' (un pt1) tsrs)
+      return undefined
+-}
 
 {- 
   ReifySchema :: (Show a, Read a, KnownSymbol l)
