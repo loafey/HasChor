@@ -1,6 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE LambdaCase     #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Main where
 
@@ -11,6 +12,8 @@ import Control.Monad
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State
 import System.Environment
+
+-- * ROBERT: doesn't work, Edge hides information that we can not recover in order to rewrite
 
 -- an edge of the ring is represented as a tuple of two locaitons l and l' where
 -- l is on the left of l'
@@ -25,6 +28,7 @@ type Label = Int
 ringLeader :: Ring -> Choreo (StateT Label IO) ()
 ringLeader ring = loop ring
   where
+    {-# INLINE loop #-}
     loop :: Ring -> Choreo (StateT Label IO) ()
     loop []     = loop ring
     loop (x:xs) = do
@@ -33,6 +37,7 @@ ringLeader ring = loop ring
       then return ()
       else loop xs
 
+    {-# INLINE talkToRight #-}
     talkToRight :: Edge -> Choreo (StateT Label IO) Bool
     talkToRight (Edge left right) = do
       labelLeft  <- (left, \_ -> get) ~~> right
@@ -49,18 +54,13 @@ ringLeader ring = loop ring
           right `locally` \un -> put (max (un labelLeft) (un labelRight))
           return False
 
-nodeA :: Proxy "A"
-nodeA = Proxy
+$(compileFor 0 [ ("nodeA", ("nodeA", 4243))
+               , ("nodeB", ("nodeB", 4324))
+               , ("nodeC", ("nodeC", 4234))
+               , ("nodeD", ("nodeD", 4432))
+               ])
 
-nodeB :: Proxy "B"
-nodeB = Proxy
-
-nodeC :: Proxy "C"
-nodeC = Proxy
-
-nodeD :: Proxy "D"
-nodeD = Proxy
-
+{-# INLINE ring #-}
 ring = [ Edge nodeA nodeB
        , Edge nodeB nodeC
        , Edge nodeC nodeD

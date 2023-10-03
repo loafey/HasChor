@@ -2,10 +2,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Main where
 
-import Choreography (runChoreography)
+import Choreography
 import Choreography.Choreo
 import Choreography.Location
 import Choreography.Network.Http
@@ -20,17 +21,11 @@ import GHC.IORef (IORef (IORef))
 import GHC.TypeLits (KnownSymbol)
 import System.Environment
 
-client :: Proxy "client"
-client = Proxy
-
-primary :: Proxy "primary"
-primary = Proxy
-
-backup1 :: Proxy "backup1"
-backup1 = Proxy
-
-backup2 :: Proxy "backup2"
-backup2 = Proxy
+$(compileFor 0 [ ("client", ("localhost", 3000))
+               , ("primary", ("localhost", 4000))
+               , ("backup1", ("localhost", 5000))
+               , ("backup2", ("localhost", 6000))
+               ])
 
 type State = Map String String
 
@@ -80,6 +75,7 @@ nullReplicationStrategy request stateRef = do
       state <- readIORef (unwrap stateRef)
       return (Map.lookup key state)
 
+{-# INLINE doBackup #-}
 -- | `doBackup` relays a mutating request to a backup location.
 doBackup ::
   KnownSymbol a =>
@@ -178,19 +174,22 @@ doubleBackupChoreo = do
       loop stateRefs
 
 main :: IO ()
-main = do
-  [loc] <- getArgs
-  case loc of
-    "client" -> runChoreography config primaryBackupChoreo "client"
-    "primary" -> runChoreography config primaryBackupChoreo "primary"
-    "backup1" -> runChoreography config primaryBackupChoreo "backup1"
-    "backup2" -> runChoreography config primaryBackupChoreo "backup2"
-  return ()
-  where
-    config =
-      mkHttpConfig
-        [ ("client", ("localhost", 3000)),
-          ("primary", ("localhost", 4000)),
-          ("backup1", ("localhost", 5000)),
-          ("backup2", ("localhost", 6000))
-        ]
+main = run' primaryBackupChoreo
+
+-- main :: IO ()
+-- main = do
+--   [loc] <- getArgs
+--   case loc of
+--     "client" -> runChoreography config primaryBackupChoreo "client"
+--     "primary" -> runChoreography config primaryBackupChoreo "primary"
+--     "backup1" -> runChoreography config primaryBackupChoreo "backup1"
+--     "backup2" -> runChoreography config primaryBackupChoreo "backup2"
+--   return ()
+--   where
+--     config =
+--       mkHttpConfig
+--         [ ("client", ("localhost", 3000)),
+--           ("primary", ("localhost", 4000)),
+--           ("backup1", ("localhost", 5000)),
+--           ("backup2", ("localhost", 6000))
+--         ]

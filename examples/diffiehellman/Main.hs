@@ -1,10 +1,11 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Main where
 
-import Choreography (mkHttpConfig, runChoreography)
+import Choreography
 import Choreography.Choreo
 import Choreography.Location
 import Data.Proxy
@@ -24,12 +25,9 @@ isPrime x = divisors x == [1, x]
 primeNums :: [Integer]
 primeNums = [x | x <- [2 ..], isPrime x]
 
--- set up proxies
-alice :: Proxy "alice"
-alice = Proxy
-
-bob :: Proxy "bob"
-bob = Proxy
+$( compileFor 1 [ ("alice", ("localhost", 5000))
+                , ("bob", ("localhost", 5001))
+                ])
 
 diffieHellman :: Choreo IO (Integer @ "alice", Integer @ "bob")
 diffieHellman = do
@@ -77,15 +75,18 @@ diffieHellman = do
   return (s1, s2)
 
 main :: IO ()
-main = do
-  [loc] <- getArgs
-  x <- case loc of
-    "alice" -> runChoreography config diffieHellman "alice"
-    "bob" -> runChoreography config diffieHellman "bob"
-  return ()
-  where
-    config =
-      mkHttpConfig
-        [ ("alice", ("localhost", 5000)),
-          ("bob", ("localhost", 5001))
-        ]
+main = run' diffieHellman
+
+-- main :: IO ()
+-- main = do
+--   [loc] <- getArgs
+--   x <- case loc of
+--     "alice" -> runChoreography config diffieHellman "alice"
+--     "bob" -> runChoreography config diffieHellman "bob"
+--   return ()
+--   where
+--     config =
+--       mkHttpConfig
+--         [ ("alice", ("localhost", 5000)),
+--           ("bob", ("localhost", 5001))
+--         ]

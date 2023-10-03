@@ -25,9 +25,13 @@ data a @ (l :: LocTy)
   | Empty  -- ^ A located value @a \@ l@ from locations other than @l@'s
            -- perspective.
 
+type At a l = a @ l
+
 -- | Wrap a value as a located value.
 wrap :: a -> a @ l
 wrap = Wrap
+
+mkEmpty = Empty
 
 -- | Unwrap a located value.
 --

@@ -7,6 +7,8 @@ module Choreography (
   LocTm,
   LocTy,
   type (@),
+  At(..),
+  toLocTm,
 
   -- * The Choreo monad
   Choreo,
@@ -24,8 +26,18 @@ module Choreography (
   HttpConfig,
    mkHttpConfig,
 
+  -- * Network stuff
+  run,
+  send,
+  recv,
+  broadcast,
+  unwrap,
+  wrap,
+  mkEmpty,
+  compileFor,
+
   -- * Running choreographies
-  runChoreo,
+--  runChoreo,
   runChoreography
   ) where
 
@@ -35,8 +47,10 @@ import Choreography.Network
 import Choreography.Network.Http
 import Choreography.Network.Local
 import Control.Monad.IO.Class
+
+import Choreography.Rulegen
 import Data.Proxy
 
 -- | Run a choreography with a message transport backend.
 runChoreography :: (Backend config, MonadIO m) => config -> Choreo m a -> LocTm -> m a
-runChoreography cfg choreo l = runNetwork cfg l (epp choreo l)
+runChoreography cfg choreo l = runNetwork cfg l choreo --(epp choreo l)

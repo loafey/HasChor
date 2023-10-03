@@ -1,6 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE LambdaCase     #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Main where
 
@@ -9,11 +10,9 @@ import Data.Proxy
 import Data.Time
 import System.Environment
 
-buyer :: Proxy "buyer"
-buyer = Proxy
-
-seller :: Proxy "seller"
-seller = Proxy
+$(compileFor 1 [ ("buyer", ("localhost", 4242))
+               , ("seller", ("localhost", 4343))
+               ])
 
 -- | `bookseller` is a choreography that implements the bookseller protocol.
 bookseller :: Choreo IO (Maybe Day @ "buyer")
@@ -85,13 +84,16 @@ deliveryDateOf "Types and Programming Languages" = fromGregorian 2022 12 19
 deliveryDateOf "Homotopy Type Theory"            = fromGregorian 2023 01 01
 
 main :: IO ()
-main = do
-  [loc] <- getArgs
-  case loc of
-    "buyer"  -> runChoreography cfg bookseller' "buyer"
-    "seller" -> runChoreography cfg bookseller' "seller"
-  return ()
-  where
-    cfg = mkHttpConfig [ ("buyer",  ("localhost", 4242))
-                       , ("seller", ("localhost", 4343))
-                       ]
+main = run' bookseller
+
+-- main :: IO ()
+-- main = do
+--   [loc] <- getArgs
+--   case loc of
+--     "buyer"  -> runChoreography cfg bookseller' "buyer"
+--     "seller" -> runChoreography cfg bookseller' "seller"
+--   return ()
+--   where
+--     cfg = mkHttpConfig [ ("buyer",  ("localhost", 4242))
+--                        , ("seller", ("localhost", 4343))
+--                        ]

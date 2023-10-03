@@ -2,10 +2,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Main where
 
-import Choreography (runChoreography)
+import Choreography
 import Choreography.Choreo
 import Choreography.Location
 import Choreography.Network.Http
@@ -20,11 +21,9 @@ import GHC.IORef (IORef (IORef))
 import GHC.TypeLits (KnownSymbol)
 import System.Environment
 
-client :: Proxy "client"
-client = Proxy
-
-server :: Proxy "server"
-server = Proxy
+$(compileFor 1 [ ("client", ("localhost", 3000))
+               , ("server", ("localhost", 4000))
+               ])
 
 type State = Map String String
 
@@ -89,15 +88,18 @@ mainChoreo = do
       loop stateRef
 
 main :: IO ()
-main = do
-  [loc] <- getArgs
-  case loc of
-    "client" -> runChoreography config mainChoreo "client"
-    "server" -> runChoreography config mainChoreo "server"
-  return ()
-  where
-    config =
-      mkHttpConfig
-        [ ("client", ("localhost", 3000)),
-          ("server", ("localhost", 4000))
-        ]
+main = run' mainChoreo
+
+-- main :: IO ()
+-- main = do
+--   [loc] <- getArgs
+--   case loc of
+--     "client" -> runChoreography config mainChoreo "client"
+--     "server" -> runChoreography config mainChoreo "server"
+--   return ()
+--   where
+--     config =
+--       mkHttpConfig
+--         [ ("client", ("localhost", 3000)),
+--           ("server", ("localhost", 4000))
+--         ]

@@ -1,6 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE LambdaCase     #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Main where
 
@@ -9,15 +10,12 @@ import Data.Proxy
 import Data.Time
 import System.Environment
 
-buyer :: Proxy "buyer"
-buyer = Proxy
+$(compileFor 1 [ ("buyer",  ("localhost", 4242))
+               , ("seller", ("localhost", 4343))
+               , ("buyer2", ("localhost", 4444))
+               ])
 
-seller :: Proxy "seller"
-seller = Proxy
-
-buyer2 :: Proxy "buyer2"
-buyer2 = Proxy
-
+{-# INLINE bookseller #-}
 -- | `bookseller` is a choreography that implements the bookseller protocol.
 -- This version takes a choreography `mkDecision` that implements the decision making process.
 bookseller :: (Int @ "buyer" -> Choreo IO (Bool @ "buyer")) -> Choreo IO (Maybe Day @ "buyer")
@@ -49,11 +47,13 @@ bookseller mkDecision = do
         putStrLn "The book's price is out of the budget"
         return Nothing
 
+{-# INLINE mkDecision1 #-}
 -- | `mkDecision1` checks if buyer's budget is greater than the price of the book
 mkDecision1 :: Int @ "buyer" -> Choreo IO (Bool @ "buyer")
 mkDecision1 price = do
   buyer `locally` \un -> return $ un price < budget
 
+{-# INLINE mkDecision2 #-}
 -- | `mkDecision2` asks buyer2 how much they're willing to contribute and checks
 -- if the buyer's budget is greater than the price of the book minus buyer2's contribution
 mkDecision2 :: Int @ "buyer" -> Choreo IO (Bool @ "buyer")
@@ -77,17 +77,20 @@ deliveryDateOf "Types and Programming Languages" = fromGregorian 2022 12 19
 deliveryDateOf "Homotopy Type Theory"            = fromGregorian 2023 01 01
 
 main :: IO ()
-main = do
-  [loc] <- getArgs
-  case loc of
-    "buyer"  -> runChoreography cfg choreo "buyer"
-    "seller" -> runChoreography cfg choreo "seller"
-    "buyer2" -> runChoreography cfg choreo "buyer2"
-  return ()
-  where
-    choreo = bookseller mkDecision2
+main = run' $ bookseller mkDecision2
 
-    cfg = mkHttpConfig [ ("buyer",  ("localhost", 4242))
-                       , ("seller", ("localhost", 4343))
-                       , ("buyer2", ("localhost", 4444))
-                       ]
+-- main :: IO ()
+-- main = do
+--   [loc] <- getArgs
+--   case loc of
+--     "buyer"  -> runChoreography cfg choreo "buyer"
+--     "seller" -> runChoreography cfg choreo "seller"
+--     "buyer2" -> runChoreography cfg choreo "buyer2"
+--   return ()
+--   where
+--     choreo = bookseller mkDecision2
+
+--     cfg = mkHttpConfig [ ("buyer",  ("localhost", 4242))
+--                        , ("seller", ("localhost", 4343))
+--                        , ("buyer2", ("localhost", 4444))
+--                        ]

@@ -1,10 +1,11 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Main where
 
-import Choreography (runChoreography)
+import Choreography
 import Choreography.Choreo
 import Choreography.Location
 import Choreography.Network.Http
@@ -13,20 +14,19 @@ import Data.Time
 import GHC.TypeLits (KnownSymbol)
 import System.Environment
 
+-- * ROBERT: Does not work, as sort and merge are both location polymorphic and recursive
+
 divide :: [a] -> ([a], [a])
 divide xs = splitAt lhx xs
   where
     lhx = length xs `div` 2
 
-primary :: Proxy "primary"
-primary = Proxy
+$(compileFor 0         [ ("primary", ("localhost", 3000))
+                       , ("worker1", ("localhost", 4000))
+                       , ("worker2", ("localhost", 5000))
+                       ])
 
-worker1 :: Proxy "worker1"
-worker1 = Proxy
-
-worker2 :: Proxy "worker2"
-worker2 = Proxy
-
+{-# INLINE sort #-}
 sort ::
   KnownSymbol a =>
   Proxy a ->
@@ -52,6 +52,7 @@ sort a b c lst = do
     False -> do
       return lst
 
+{-# INLINE merge #-}
 merge ::
   KnownSymbol a =>
   Proxy a ->
@@ -102,17 +103,20 @@ mainChoreo = do
   return ()
 
 main :: IO ()
-main = do
-  [loc] <- getArgs
-  case loc of
-    "primary" -> runChoreography config mainChoreo "primary"
-    "worker1" -> runChoreography config mainChoreo "worker1"
-    "worker2" -> runChoreography config mainChoreo "worker2"
-  return ()
-  where
-    config =
-      mkHttpConfig
-        [ ("primary", ("localhost", 3000)),
-          ("worker1", ("localhost", 4000)),
-          ("worker2", ("localhost", 5000))
-        ]
+main = run' mainChoreo
+
+-- main :: IO ()
+-- main = do
+--   [loc] <- getArgs
+--   case loc of
+--     "primary" -> runChoreography config mainChoreo "primary"
+--     "worker1" -> runChoreography config mainChoreo "worker1"
+--     "worker2" -> runChoreography config mainChoreo "worker2"
+--   return ()
+--   where
+--     config =
+--       mkHttpConfig
+--         [ ("primary", ("localhost", 3000)),
+--           ("worker1", ("localhost", 4000)),
+--           ("worker2", ("localhost", 5000))
+--         ]

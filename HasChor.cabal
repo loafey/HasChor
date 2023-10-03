@@ -21,6 +21,7 @@ library
         Choreography.Network,
         Choreography.Network.Http
         Choreography.Network.Local
+        Choreography.Rulegen
         Control.Monad.Freer
     build-depends:
         base ^>= 4.16.4.0,
@@ -30,7 +31,8 @@ library
         servant-client ^>= 0.19,
         servant-server ^>= 0.19.2,
         unordered-containers ^>= 0.2.19.1,
-        warp ^>= 3.3.23
+        warp ^>= 3.3.23,
+        template-haskell
 
 executable bank-2pc
     hs-source-dirs:   examples/bank-2pc
@@ -58,7 +60,10 @@ executable average-salary
     build-depends:
         HasChor,
         base ^>= 4.16.4.0,
-        time ^>= 1.11.1.1
+        time ^>= 1.11.1.1,
+        template-haskell,
+        deepseq
+    ghc-options: -ddump-splices -ddump-rule-firings -O3
 
 executable bookseller-1-simple
     hs-source-dirs:   examples/bookseller-1-simple
@@ -68,6 +73,7 @@ executable bookseller-1-simple
         HasChor,
         base ^>= 4.16.4.0,
         time ^>= 1.11.1.1
+    ghc-options: -ddump-splices -ddump-rule-firings -O3
 
 executable bookseller-2-higher-order
     hs-source-dirs:   examples/bookseller-2-higher-order
@@ -77,6 +83,7 @@ executable bookseller-2-higher-order
         HasChor,
         base ^>= 4.16.4.0,
         time ^>= 1.11.1.1
+    ghc-options: -ddump-splices -ddump-rule-firings -O3
 
 executable bookseller-3-loc-poly
     hs-source-dirs:   examples/bookseller-3-loc-poly
@@ -86,6 +93,7 @@ executable bookseller-3-loc-poly
         HasChor,
         base ^>= 4.16.4.0,
         time ^>= 1.11.1.1
+    ghc-options: -ddump-splices -ddump-rule-firings -O3
 
 executable diffiehellman
     hs-source-dirs:   examples/diffiehellman
@@ -96,6 +104,7 @@ executable diffiehellman
         base ^>= 4.16.4.0,
         time ^>= 1.11.1.1,
         random ^>= 1.2.1.1
+    ghc-options: -ddump-splices -ddump-rule-firings -O3
 
 executable karatsuba
     hs-source-dirs:   examples/karatsuba
@@ -106,6 +115,7 @@ executable karatsuba
         async ^>= 2.2.4,
         base ^>= 4.16.3.0,
         containers ^>= 0.6.5.1
+    ghc-options: -ddump-splices -ddump-rule-firings -O3
 
 executable kvs1
     hs-source-dirs:   examples/kvs-1-simple
@@ -116,6 +126,7 @@ executable kvs1
         base ^>= 4.16.4.0,
         time ^>= 1.11.1.1,
         containers ^>= 0.6.5.1
+    ghc-options: -ddump-splices -ddump-rule-firings -O3
 
 executable kvs2
     hs-source-dirs:   examples/kvs-2-primary-backup
@@ -126,6 +137,7 @@ executable kvs2
         base ^>= 4.16.4.0,
         time ^>= 1.11.1.1,
         containers ^>= 0.6.5.1
+    ghc-options: -ddump-splices -ddump-rule-firings -O3
 
 executable kvs3
     hs-source-dirs:   examples/kvs-3-higher-order
@@ -136,6 +148,7 @@ executable kvs3
         base ^>= 4.16.4.0,
         time ^>= 1.11.1.1,
         containers ^>= 0.6.5.1
+    ghc-options: -ddump-splices -ddump-rule-firings -O3
 
 executable kvs4
     hs-source-dirs:   examples/kvs-4-loc-poly
@@ -146,6 +159,7 @@ executable kvs4
         base ^>= 4.16.4.0,
         time ^>= 1.11.1.1,
         containers ^>= 0.6.5.1
+    ghc-options: -ddump-splices -ddump-rule-firings -O3
 
 executable mergesort
     hs-source-dirs:   examples/mergesort
@@ -156,6 +170,7 @@ executable mergesort
         base ^>= 4.16.4.0,
         time ^>= 1.11.1.1,
         containers ^>= 0.6.5.1
+    ghc-options: -ddump-splices -ddump-rule-firings -O3
 
 executable quicksort
     hs-source-dirs:   examples/quicksort
@@ -167,6 +182,7 @@ executable quicksort
         time ^>= 1.11.1.1,
         containers ^>= 0.6.5.1,
         async ^>= 2.2.4
+    ghc-options: -ddump-splices -ddump-rule-firings -O3
 
 executable ring-leader
     hs-source-dirs:   examples/ring-leader
@@ -176,6 +192,7 @@ executable ring-leader
         HasChor,
         base ^>= 4.16.4.0,
         transformers ^>= 0.5.6.2
+    ghc-options: -ddump-splices -ddump-rule-firings -O3
 
 executable playground
     hs-source-dirs:   examples/playground
@@ -184,3 +201,4 @@ executable playground
     build-depends:
         HasChor,
         base ^>= 4.16.4.0,
+    ghc-options: -ddump-splices -ddump-rule-firings -O3

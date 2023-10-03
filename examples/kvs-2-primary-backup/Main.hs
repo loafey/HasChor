@@ -2,10 +2,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Main where
 
-import Choreography (runChoreography)
+import Choreography
 import Choreography.Choreo
 import Choreography.Location
 import Choreography.Network.Http
@@ -20,14 +21,10 @@ import GHC.IORef (IORef (IORef))
 import GHC.TypeLits (KnownSymbol)
 import System.Environment
 
-client :: Proxy "client"
-client = Proxy
-
-primary :: Proxy "primary"
-primary = Proxy
-
-backup :: Proxy "backup"
-backup = Proxy
+$(compileFor 0 [ ("client", ("localhost", 3000))
+               , ("primary", ("localhost", 4000))
+               , ("backup", ("localhost", 5000))
+               ])
 
 type State = Map String String
 
@@ -109,17 +106,20 @@ mainChoreo = do
       loop stateRefs
 
 main :: IO ()
-main = do
-  [loc] <- getArgs
-  case loc of
-    "client" -> runChoreography config mainChoreo "client"
-    "primary" -> runChoreography config mainChoreo "primary"
-    "backup" -> runChoreography config mainChoreo "backup"
-  return ()
-  where
-    config =
-      mkHttpConfig
-        [ ("client", ("localhost", 3000)),
-          ("primary", ("localhost", 4000)),
-          ("backup", ("localhost", 5000))
-        ]
+main = run' mainChoreo
+
+-- main :: IO ()
+-- main = do
+--   [loc] <- getArgs
+--   case loc of
+--     "client" -> runChoreography config mainChoreo "client"
+--     "primary" -> runChoreography config mainChoreo "primary"
+--     "backup" -> runChoreography config mainChoreo "backup"
+--   return ()
+--   where
+--     config =
+--       mkHttpConfig
+--         [ ("client", ("localhost", 3000)),
+--           ("primary", ("localhost", 4000)),
+--           ("backup", ("localhost", 5000))
+--         ]

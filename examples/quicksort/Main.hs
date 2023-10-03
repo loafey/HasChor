@@ -1,10 +1,11 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Main where
 
-import Choreography (runChoreography)
+import Choreography
 import Choreography.Choreo
 import Choreography.Location
 import Choreography.Network.Local
@@ -14,15 +15,14 @@ import Data.Time
 import GHC.TypeLits (KnownSymbol)
 import System.Environment
 
-primary :: Proxy "primary"
-primary = Proxy
+-- * ROBERT: Does not work, as quicksort is both location polymorphic and recursive
 
-worker1 :: Proxy "worker1"
-worker1 = Proxy
+$(compileFor 0 [ ("primary", ("primary", 4243))
+               , ("worker1", ("worker1", 4342))
+               , ("worker2", ("worker2", 4323))
+               ])
 
-worker2 :: Proxy "worker2"
-worker2 = Proxy
-
+{-# INLINE quicksort #-}
 quicksort :: (KnownSymbol a, KnownSymbol b, KnownSymbol c) => Proxy a -> Proxy b -> Proxy c -> [Int] @ a -> Choreo IO ([Int] @ a)
 quicksort a b c lst = do
   isEmpty <- a `locally` \unwrap -> pure (null (unwrap lst))
@@ -48,9 +48,12 @@ mainChoreo = do
   return ()
 
 main :: IO ()
-main = do
-  config <- mkLocalConfig locs
-  mapConcurrently_ (runChoreography config mainChoreo) locs
-  return ()
-  where
-    locs = ["primary", "worker1", "worker2"]
+main = run' mainChoreo
+
+-- main :: IO ()
+-- main = do
+--   config <- mkLocalConfig locs
+--   mapConcurrently_ (runChoreography config mainChoreo) locs
+--   return ()
+--   where
+--     locs = ["primary", "worker1", "worker2"]
