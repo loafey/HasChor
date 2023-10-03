@@ -126,7 +126,7 @@ locally' p k u = do
 
 -- If everything works, this piece of code will ask for two schemas and show the aggregated one
 p :: Choreo IO (() @ "pserver")  
-p = gS (h1 :* Nil) pserver $ \ts -> do
+p = gS (h1 :* h2 :* Nil) pserver $ \ts -> do
    locally pserver $ \un -> putStrLn $ show $ un ts 
 
 
