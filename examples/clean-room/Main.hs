@@ -116,9 +116,10 @@ gS (p@Proxy :* ls) s k = do
       t1 <- (p, ts) ~> s
       case ls of
          Nil      -> locally' s k (\un -> un t1)
-         (_ :* _) -> gS ls s ( \tsrs -> locally' s k (\un -> merge (un t1) (un tsrs)))
+         (_ :* _) -> gS ls s (\tsrs -> locally' s k (\un -> merge (un t1) (un tsrs)))
 
-
+-- An insight! We need a special locally that separates pure from Choreo
+-- computations to make gS type-check. The good news is that it is a derived operation! 
 locally' :: KnownSymbol l => Proxy l -> (a @ l -> Choreo IO b) -> (Unwrap l -> a) -> Choreo IO b
 locally' p k u = do
    al <- locally p $ \un -> return (u un)
