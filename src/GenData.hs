@@ -2,7 +2,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE FunctionalDependencies #-}
+
 module GenData where
 
 import Data.SOP ( K(..), NP(..), Proxy (Proxy), All, All2, Compose )
@@ -126,10 +126,10 @@ type family App (ts1 :: [k]) (ts2 :: [k]) where
   App '[]     ts2 = ts2
   App (t:ts1) ts2 = t : App ts1 ts2
 
-merge' :: Table ts1 -> Table ts2 -> Table (App ts1 ts2)
-merge' (Table Nil)        ts2 = ts2
-merge' (Table (t :* ts1)) ts2 = Table (t :* res) 
-  where Table res = merge' (Table ts1) ts2 
+merge :: Table ts1 -> Table ts2 -> Table (App ts1 ts2)
+merge (Table Nil)        ts2 = ts2
+merge (Table (t :* ts1)) ts2 = Table (t :* res)
+  where Table res = merge (Table ts1) ts2
 
 
 

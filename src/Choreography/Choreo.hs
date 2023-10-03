@@ -86,11 +86,12 @@ epp c l' = interpFreer handler c
       | otherwise       = epp (k @'[] Empty) l'
 
 
-
+{- 
 
 compile :: [LocTm] -> Choreo m a -> [(LocTm, Network m a)]
 compile ls p = map (\l -> (l, epp p l)) ls
 
+-}
 
 -- * Choreo operations
 -- | Perform a local computation at a given location.
@@ -148,20 +149,3 @@ reify :: KnownSymbol l
       -> Choreo m r
 reify p spec k = toFreer $ ReifyTable p spec k 
 
-data TableX where
-  TableX :: Table ts -> TableX  
-
-rewrap :: (KnownSymbol l, Dummy ts) => Proxy l -> Table ts @ l -> Choreo IO (TableX @ l) 
-rewrap l t = locally l (\un -> return (TableX (un t)))
-
-jj :: Choreo m (Choreo m a) -> Choreo m a 
-jj = join 
-
--- t (t m) a -> t m a 
-
---  Local :: (KnownSymbol l)
---         => Proxy l
---         -> (Unwrap l -> m a)
---         -> ChoreoSig m (a @ l)
--- (\un' -> )   :: Unwrap l -> m a 
---              :: Unwrap l -> Freer (ChoreoSig m) a 

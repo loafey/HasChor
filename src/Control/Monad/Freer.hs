@@ -42,5 +42,3 @@ interpFreer :: Monad m => (forall a. f a -> m a) -> Freer f a -> m a
 interpFreer handler (Return a) = return a
 interpFreer handler (Do eff k) = handler eff >>= interpFreer handler . k
 
-joinFreer :: Freer f (Freer f a) -> Freer f a 
-joinFreer mm = mm >>= id 
