@@ -35,3 +35,7 @@ wrap = Wrap
 unwrap :: a @ l-> a
 unwrap (Wrap a) = a
 unwrap Empty    = error "this should never happen for a well-typed choreography"
+
+
+joinLoc :: (a @ l) @ l -> a @ l 
+joinLoc = unwrap  

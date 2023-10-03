@@ -2,6 +2,8 @@
 {-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use const" #-}
 
 -- | This module defines `Choreo`, the monad for writing choreographies.
 module Choreography.Choreo where
@@ -13,6 +15,7 @@ import Data.List
 import Data.Proxy
 import GHC.TypeLits
 import GenData (Table, SchemaU, reifySchema, Dummy)
+import Control.Monad (join)
 
 -- * The Choreo monad
 
@@ -151,4 +154,14 @@ data TableX where
 rewrap :: (KnownSymbol l, Dummy ts) => Proxy l -> Table ts @ l -> Choreo IO (TableX @ l) 
 rewrap l t = locally l (\un -> return (TableX (un t)))
 
+jj :: Choreo m (Choreo m a) -> Choreo m a 
+jj = join 
 
+-- t (t m) a -> t m a 
+
+--  Local :: (KnownSymbol l)
+--         => Proxy l
+--         -> (Unwrap l -> m a)
+--         -> ChoreoSig m (a @ l)
+-- (\un' -> )   :: Unwrap l -> m a 
+--              :: Unwrap l -> Freer (ChoreoSig m) a 

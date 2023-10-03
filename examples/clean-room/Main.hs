@@ -5,6 +5,8 @@
 {-# LANGUAGE GADTs #-}
 {-# OPTIONS_GHC -Wno-overlapping-patterns #-}
 {-# HLINT ignore "Use join" #-}
+{-# LANGUAGE LiberalTypeSynonyms #-}
+{-# HLINT ignore "Use <$>" #-}
 
 module Main where
 
@@ -12,13 +14,15 @@ import Choreography
 import Data.Proxy
 import Data.Time
 import System.Environment
-import Choreography.Location (wrap, unwrap)
+import Choreography.Location (wrap, unwrap, joinLoc)
 import Data.Functor.Identity (Identity)
 import Data.SOP ( K(..), NP(..), I (I), All )
 import GHC.Generics ( (:*:) (..) )
 import GenData
 import GHC.TypeLits (KnownSymbol)
-import Choreography.Choreo (reify, TableX (..), rewrap)
+import Choreography.Choreo (reify, TableX (..), rewrap, Unwrap)
+import Control.Monad (join)
+import Control.Monad.Freer (joinFreer)
 
 
 main :: IO ()
@@ -155,20 +159,80 @@ aggregate s (tx : txs) = do
    rest <- aggregate s txs
    locally s $ \un -> return $ mergeX (un tx) (un rest)
 
-{- It does not type-check 
 
+{-
 -- Send all the schemas to the Public server 
 gS :: (All KnownSymbol ls, KnownSymbol l')
-   => NP Proxy ls -> Proxy l' -> (forall ff. Table ff -> r) -> Choreo IO (r @ l')
+   => NP Proxy ls -> Proxy l' -> (forall ff. Table ff -> Choreo IO r) -> Choreo IO r'
 gS (p@Proxy :* ls) s k = do
      spec <- locally p $ \un -> do
         spec <- getLine
         return (read spec :: [(String,String)])
+     reify p spec $ \ts -> do 
+      t1 <- (p, ts) ~> s
+      gS ls s ( \tsrs -> k (merge' (un pts) tsrs))
+-}
+
+
+-- Send all the schemas to the Public server 
+gS :: (All KnownSymbol ls, KnownSymbol l')
+   => NP Proxy ls -> Proxy l' -> (forall ff. Table ff @ l' -> Choreo IO r) -> Choreo IO r
+gS (p@Proxy :* ls) s k = do
+     spec <- locally p $ \un -> do
+        spec <- getLine
+        return (read spec :: [(String,String)])
+     reify p spec $ \ts -> do 
+      t1 <- (p, ts) ~> s
+      gS ls s ( \tsrs -> newlocally s k (\un -> merge' (un t1) (un tsrs)))
+
+newlocally :: KnownSymbol l => Proxy l -> (a @ l -> Choreo IO b) -> (Unwrap l -> a) -> Choreo IO b 
+newlocally p k u = do 
+   al <- locally p $ \un -> return $ u un  
+   k al 
+
+{-
+  
+      gS ls s ( \tsrs -> newLocally s k (\un -> merge' (un pts) tsrs))
+
+      newLocally :: server -> (Table ts -> Choreo IO r) (Unwrap server -> Table ts) -> Choreo IO r
+
+      gS :: server -> (Table ts -> Choreo IO r) -> Choreo IO r 
+
+-}
+
+{-
+
+gS :: (All KnownSymbol ls, KnownSymbol l') => NP Proxy ls -> Proxy l' -> Choreo IO (TableX @ l')
+gS (p@Proxy :* ls) s = do
+     spec <- locally p $ \un -> do
+        spec <- getLine
+        return (read spec :: [(String,String)])
+     reify p spec \ts -> do
+      pt1  <- (p, ts) ~> s
+      pt1' <- rewrap s pt1
+      rs   <- gS ls s
+      locally s $ \un -> return $ mergeX (un pt1') (un rs) 
+gS Nil s = locally s $ \un -> return (TableX (Table Nil))
+
+-- Trivial 
+
+-}
+
+{-
+
      reify p spec $ \ts -> do
       pt1  <- (p, ts) ~> s
-      m <- gS ls s $ \tsrs -> locally s $ \un -> return @IO $ k (merge' (un pt1) tsrs)
-      return undefined
+      gs ls s (\tsrs -> return tsrs)
+
+locally s $ (Choreo IO) r -> Choreo (Choreo IO) r
+ 
+Choreo (Freer ChoreoSig m) a -... Choreo a 
+
+Freer (ChoreoSig (Freer ChoreoSig m)) a = Freer (ChoreoSig m) a
+
+
 -}
+
 
 {- 
   ReifySchema :: (Show a, Read a, KnownSymbol l)
