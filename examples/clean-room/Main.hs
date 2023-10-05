@@ -51,13 +51,12 @@ sch2 :: Table '[ 'TInt, 'TInt ]
 sch2 = Table $ K "id" :*: STInt :* K "age" :*: STInt :* Nil
 
 -- >>> show sch1
--- "(\"id\",\"STInt\"),(\"covid\",\"STBool\")"
+-- "K \"id\" :*: Int :* K \"covid\" :*: Bool :* Nil"
 
 -- >>> show sch2
--- "(\"id\",\"STInt\"),(\"age\",\"STInt\")"
+-- "K \"id\" :*: Int :* K \"age\" :*: Int :* Nil"
 
--- >>> read "(\"id\",\"STInt\"),(\"age\",\"STInt\")"
-
+ttt :: Table '[ 'TInt, 'TBool, 'TInt, 'TInt]
 ttt = merge sch1 sch2
 
 h1 :: Proxy "h1"
@@ -107,7 +106,10 @@ pserver = Proxy
 
 -- Send all the schemas to the Public server 
 gS :: (All KnownSymbol ls, KnownSymbol l', KnownSymbol l)
-   => NP Proxy (l : ls) -> Proxy l' -> (forall ff. Table ff @ l' -> Choreo IO r) -> Choreo IO r
+   => NP Proxy (l : ls) 
+   -> Proxy l' 
+   -> (forall ts. All KnownTy ts => Table ts @ l' -> Choreo IO r) 
+   -> Choreo IO r
 gS (p@Proxy :* ls) s k = do
      spec <- locally p $ \un -> do
         spec <- getLine
@@ -116,18 +118,21 @@ gS (p@Proxy :* ls) s k = do
       t1 <- (p, ts) ~> s
       case ls of
          Nil      -> locally' s k (\un -> un t1)
-         (_ :* _) -> gS ls s (\tsrs -> locally' s k (\un -> merge (un t1) (un tsrs)))
+         (_ :* _) -> undefined -- gS ls s (\tsrs -> locally' s k (\un -> merge (un t1) (un tsrs)))
 
 -- An insight! We need a special locally that separates pure from Choreo
 -- computations to make gS type-check. The good news is that it is a derived operation! 
 locally' :: KnownSymbol l => Proxy l -> (a @ l -> Choreo IO b) -> (Unwrap l -> a) -> Choreo IO b
 locally' p k u = do
-   al <- locally p $ \un -> return (u un)
+   al <- locally p $ \un -> return $ u un   
    k al
 
 -- If everything works, this piece of code will ask for two schemas and show the aggregated one
-p :: Choreo IO (() @ "pserver")  
-p = gS (h1 :* h2 :* Nil) pserver $ \ts -> do
+p :: Choreo IO ()  
+p = gS (h1 :* Nil) pserver $ \ts -> do
    locally pserver $ \un -> putStrLn $ show $ un ts 
+   (pserver, ts) ~> h1 
+   return ()
+
 
 
