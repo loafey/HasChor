@@ -9,14 +9,13 @@
 
 module GenData where
 
-import Data.SOP ( K(..), NP(..), Proxy (Proxy), All (cpara_SList), All2, Compose, SOP (SOP), NS (Z, S) )
-import GHC.Generics ( (:*:) (..), (:.:) )
+import Data.SOP ( K(..), NP(..), Proxy (Proxy), All (cpara_SList) )
+import GHC.Generics ( (:*:) (..) )
 import GHC.Read (Read(readPrec))
 import Text.ParserCombinators.ReadPrec (ReadPrec, lift)
 import GHC.TypeLits (KnownSymbol)
 import Data.Kind (Constraint)
-import Text.ParserCombinators.ReadP (char, string, ReadP, satisfy, munch)
-import Data.Char (isLetter, isDigit)
+import Text.ParserCombinators.ReadP (string, ReadP)
 
 
 {- Type universe -}
@@ -40,6 +39,7 @@ instance KnownTy 'TBool where
   cType = STBool
 
 instance KnownTy t => Show (ColumnT t) where
+  show :: KnownTy t => ColumnT t -> String
   show _ = case (cType @t) of
              STInt  -> "Int"      -- t == 'TInt
              STBool -> "Bool"     -- t == 'TBool
@@ -53,7 +53,7 @@ instance All KnownTy ts => Show (Table ts) where
    show (Table np) = r np
       where
         Shows r = cpara_SList (Proxy @KnownTy) nil cons
-        
+
         {- An empty dictionary is "Nil" -}
         nil :: Shows '[]
         nil =  Shows $ const "Nil"
@@ -66,9 +66,10 @@ instance All KnownTy ts => Show (Table ts) where
 -- "K \"id\" :*: Int :* K \"covid\" :*: Bool :* Nil"
 
 instance KnownTy t => Read (ColumnT t) where
-  readPrec = case (cType @t) of
-              STInt  -> (lift $ string "Int")  >> return STInt
-              STBool -> (lift $ string "Bool") >> return STBool   
+   readPrec :: KnownTy t => ReadPrec (ColumnT t)
+   readPrec = case (cType @t) of
+               STInt  -> lift (string "Int")  >> return STInt
+               STBool -> lift (string "Bool") >> return STBool
 
 -- >>> read "Int" :: ColumnT 'TInt 
 -- Int
@@ -87,21 +88,21 @@ newtype Reads ts = Reads (ReadPrec (NP (K String :*: ColumnT) ts))
 
 {- An empty dictionary is "Nil" -}
 rnil :: Reads '[]
-rnil =  Reads $ return Nil 
+rnil =  Reads $ return Nil
 
 {- We can extend the dictionary r with y given that y is known -}
 rcons :: forall y ys. KnownTy y => Reads ys -> Reads (y : ys)
-rcons (Reads m) = Reads $ do 
+rcons (Reads m) = Reads $ do
   n  <- readPrec :: ReadPrec ((K String :*: ColumnT) y)
-  np <- m 
-  return (n :* np) 
-  
+  np <- m
+  return (n :* np)
+
 instance All KnownTy ts => Read (Table ts) where
    readPrec :: ReadPrec (Table ts)
-   readPrec = r >>= return . Table  
+   readPrec = r >>= return . Table
       where
         Reads r = cpara_SList (Proxy @KnownTy) rnil rcons
-        
+
 
 equalT :: ColumnT t -> ColumnT t' -> Maybe (Refl t t')
 equalT STInt STInt   = return Refl
@@ -126,8 +127,8 @@ reifySchema :: SchemaU
             -> r
 reifySchema []                 k = k (Table Nil)
 reifySchema ((name,ct) : uSch) k =
-  reifySchema uSch $ \(Table ts) -> 
-    reifyTy ct $ \case 
+  reifySchema uSch $ \(Table ts) ->
+    reifyTy ct $ \case
                     STInt  -> k (Table (K name :*: STInt :* ts))
                     STBool -> k (Table (K name :*: STBool :* ts))
 
@@ -139,18 +140,24 @@ table1 = Table $ K "id" :*: STInt :* K "covid" :*: STBool :* Nil
 -- >>> show table1
 -- "K \"id\" :*: Int :* K \"covid\" :*: Bool :* Nil"
 
-type family App (ts1 :: [k]) (ts2 :: [k]) where
+type family App (ts1 :: [Ty]) (ts2 :: [Ty]) where
   App '[]     ts2 = ts2
   App (t:ts1) ts2 = t : App ts1 ts2
 
-merge :: (All KnownTy ts1, All KnownTy ts2, All KnownTy (App ts1 ts2)) 
-      => Table ts1 -> Table ts2 -> Table (App ts1 ts2)
+merge :: Table ts1 -> Table ts2 -> Table (App ts1 ts2)
 merge (Table Nil)        ts2 = ts2
 merge (Table (t :* ts1)) ts2 = Table (t :* res)
   where Table res = merge (Table ts1) ts2
 
--- -- Prove All KnownTy (App ts1 ts2) from All KnownTy ts1 and All KnownTy ts2
--- instance (All KnownTy ts1, All KnownTy ts2) => All KnownTy (App ts1 ts2) where
---   all_NP = case (all_NP @KnownTy @ts1, all_NP @KnownTy @ts2) of
---     (SOP Z, ys) -> ys
---     (SOP (S xs), ys) -> SOP (S (all_NP @KnownTy @ts2))
+
+-- cpara_SList :: All c xs => proxy c -> r '[] -> (forall y ys. (c y, All c ys) => r ys -> r (y ': ys)) -> r xs
+-- newtype Appp ts1 ts2 = Appp (Table (App ts1 ts2))
+
+-- {- An empty dictionary is "Nil" -}
+-- anil :: Appp '[] ts2
+-- anil =  Appp ts2 
+
+-- {- We can extend the dictionary r with y given that y is known -}
+-- acons :: forall y ys ts2. KnownTy y => Appp ys ts2 -> Appp (y : ys) ts2
+-- acons (Appp ys) = Appp ys 
+
