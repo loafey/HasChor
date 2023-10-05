@@ -93,7 +93,8 @@ rnil =  Reads $ return Nil
 {- We can extend the dictionary r with y given that y is known -}
 rcons :: forall y ys. KnownTy y => Reads ys -> Reads (y : ys)
 rcons (Reads m) = Reads $ do
-  n  <- readPrec :: ReadPrec ((K String :*: ColumnT) y)
+  n   <- readPrec :: ReadPrec ((K String :*: ColumnT) y)
+  sep <- lift (string ":*:")
   np <- m
   return (n :* np)
 
