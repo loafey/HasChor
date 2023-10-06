@@ -17,7 +17,7 @@ import Data.SOP ( K(..), NP(..), I (I), All )
 import GHC.Generics ( (:*:) (..) )
 import GenData
 import GHC.TypeLits (KnownSymbol)
-import Choreography.Choreo (reify, Unwrap)
+import Choreography.Choreo (reify, Unwrap, (~*~>))
 import Control.Monad (join)
 
 
@@ -111,29 +111,23 @@ pserver = Proxy
 gS :: (All KnownSymbol ls, KnownSymbol l', KnownSymbol l)
    => NP Proxy (l : ls) 
    -> Proxy l' 
-   -> (forall ts. All KnownTy ts => Table ts @ l' -> Choreo IO r) 
+   -> (forall ts. Table ts @ l' -> Choreo IO r) 
    -> Choreo IO r
 gS (p@Proxy :* ls) s k = do
      spec <- locally p $ \un -> do
         spec <- getLine
         return (read spec :: [(String,String)])
      reify p spec $ \ts -> do
-       t1 <- (p, ts) ~> s
+       t1 <- (p, ts) ~*~> s
        case ls of
           Nil      -> locally' s k (\un -> un t1)
-          (_ :* _) -> gS ls s $ \tsrs -> locally2 s k $ \un -> let m = merge (un t1) (un tsrs)
-                                                               in withTableA m m          
+          (_ :* _) -> gS ls s $ \tsrs -> locally' s k $ \un -> merge (un t1) (un tsrs)
+                                                               
 
 -- An insight! We need a special locally that separates pure from Choreo
 -- computations to make gS type-check. The good news is that it is a derived operation! 
 locally' :: KnownSymbol l => Proxy l -> (a @ l -> Choreo IO b) -> (Unwrap l -> a) -> Choreo IO b
 locally' p k u = do
-   al <- locally p $ \un -> return $ u un   
-   k al
-
-locally2 :: (All KnownTy ts, KnownSymbol l) 
-         => Proxy l -> (Table ts @ l -> Choreo IO b) -> (Unwrap l -> Table ts) -> Choreo IO b
-locally2 p k u = do
    al <- locally p $ \un -> return $ u un   
    k al
 
@@ -144,8 +138,8 @@ locally2 p k u = do
 -- If everything works, this piece of code will ask for two schemas and show the aggregated one
 p :: Choreo IO ()  
 p = gS (h1 :* Nil) pserver $ \ts -> do
-   locally pserver $ \un -> withTable (un ts) $ putStrLn $ show (un ts) 
-   (pserver, ts) ~> h1 
+   locally pserver $ \un -> putStrLn $ withTable (un ts) $ show $ un ts 
+   (pserver, ts) ~*~> h1 
    return ()
 
 

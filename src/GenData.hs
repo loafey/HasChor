@@ -213,3 +213,4 @@ merge (Table (t :* ts1)) ts2 = Table (t :* res)
 -- acons :: forall y ys ts2. KnownTy y => Appp ys ts2 -> Appp (y : ys) ts2
 -- acons (Appp ys) = Appp ys 
 
+
