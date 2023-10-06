@@ -15,7 +15,7 @@ import GHC.Read (Read(readPrec))
 import Text.ParserCombinators.ReadPrec (ReadPrec, lift)
 import GHC.TypeLits (KnownSymbol)
 import Data.Kind (Constraint)
-import Text.ParserCombinators.ReadP (string, ReadP)
+import Text.ParserCombinators.ReadP ( string, ReadP, pfail )
 
 
 {- Type universe -}
@@ -46,6 +46,35 @@ instance KnownTy t => Show (ColumnT t) where
 
 newtype Table (ts :: [Ty]) = Table { repl :: NP (K String :*: ColumnT) ts }
 
+
+data C (c :: Constraint) r where
+  C :: Proxy c -> r -> C c r
+
+withColumnC :: ColumnT t -> (KnownTy t => r) -> C (KnownTy t) r
+withColumnC c r = case c of
+  STInt  -> C Proxy r
+  STBool -> C Proxy r
+
+withColumn :: ColumnT t -> (KnownTy t => r) -> r
+withColumn c r = case c of
+  STInt  -> r
+  STBool -> r
+
+withTable :: Table ts -> (All KnownTy ts => r) -> r
+withTable (Table ts) = go ts
+  where go :: NP (K String :*: ColumnT) ts -> (All KnownTy ts => r) -> r
+        go Nil       r = r
+        go (c@(K name :*: t) :* cs) r = withColumn t $ go cs r
+
+-- withTableA :: All KnownTy ts => Table ts -> r -> r
+withTableA :: All KnownTy ts => Table ts -> r -> r
+withTableA (Table ts) = go ts
+  where go :: All KnownTy ts => NP (K String :*: ColumnT) ts -> r -> r
+        go Nil       r = r
+        go (c@(K name :*: t) :* cs) r = withColumn t $ go cs r
+
+
+
 newtype Shows ts = Shows (NP (K String :*: ColumnT) ts -> String)
 
 instance All KnownTy ts => Show (Table ts) where
@@ -68,18 +97,42 @@ instance All KnownTy ts => Show (Table ts) where
 instance KnownTy t => Read (ColumnT t) where
    readPrec :: KnownTy t => ReadPrec (ColumnT t)
    readPrec = case (cType @t) of
-               STInt  -> lift (string "Int")  >> return STInt
+               STInt  -> do
+                s <- lift (string "Int")
+                if s == "Int" then return STInt
+                              else lift pfail
                STBool -> lift (string "Bool") >> return STBool
 
--- >>> read "Int" :: ColumnT 'TInt 
+-- >>> read "XXXX" :: ColumnT 'TInt 
 -- Int
+
 
 -- Why is that happening? 
 -- >>> read "XXX" :: ColumnT 'TBool
 -- Bool
 
--- >>> read "K \"id\" :*: Int" :: (K String :*: ColumnT) 'TInt
+
+-- >>> read "K \"id\" :*: STInt" :: (K String :*: ColumnT) 'TInt
 -- Prelude.read: no parse
+
+-- >>> show (K "ale" :*: STInt) :: (K String :*: ColumnT) 'TInt
+-- Couldn't match type: [Char]
+--                with: (:*:) (K String) ColumnT 'TInt
+-- Expected: (:*:) (K String) ColumnT 'TInt
+--   Actual: String
+-- In the expression:
+--     show (K "ale" :*: STInt) :: (K String :*: ColumnT) 'TInt
+-- In an equation for `it_aahcP':
+--     it_aahcP = show (K "ale" :*: STInt) :: (K String :*: ColumnT) 'TInt
+
+-- Couldn't match type: [Char]
+--                with: ColumnT 'TInt
+-- Expected: ColumnT 'TInt
+--   Actual: String
+-- In the expression: show (K "ale" :*: STInt) :: ColumnT 'TInt
+-- In an equation for `it_a9YU9':
+--     it_a9YU9 = show (K "ale" :*: STInt) :: ColumnT 'TInt
+
 
 -- >>> read "K \"id\" :*: Int :* K \"covid\" :*: Bool :* Nil" :: Table '[ 'TInt, 'TBool]
 -- Prelude.read: no parse
@@ -103,6 +156,10 @@ instance All KnownTy ts => Read (Table ts) where
    readPrec = r >>= return . Table
       where
         Reads r = cpara_SList (Proxy @KnownTy) rnil rcons
+
+
+-- >>> read "XInt" :: ColumnT 'TInt 
+-- Int
 
 
 equalT :: ColumnT t -> ColumnT t' -> Maybe (Refl t t')
@@ -151,12 +208,6 @@ merge (Table (t :* ts1)) ts2 = Table (t :* res)
   where Table res = merge (Table ts1) ts2
 
 
--- cpara_SList :: All c xs => proxy c -> r '[] -> (forall y ys. (c y, All c ys) => r ys -> r (y ': ys)) -> r xs
--- newtype Appp ts1 ts2 = Appp (Table (App ts1 ts2))
-
--- {- An empty dictionary is "Nil" -}
--- anil :: Appp '[] ts2
--- anil =  Appp ts2 
 
 -- {- We can extend the dictionary r with y given that y is known -}
 -- acons :: forall y ys ts2. KnownTy y => Appp ys ts2 -> Appp (y : ys) ts2

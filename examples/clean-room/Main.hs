@@ -94,13 +94,16 @@ pserver = Proxy
     p1: (f: (sch1 + sch2) -> Result1) -> PublicServer   (how to aggregate the schemas can be done in many ways) 
     p2: (g: (sch1 + sch2) -> Result2) -> PublicServer 
 
+    PublicServer [f,g] -> p1
+    PublicServer [f,g] -> p2 
+
     PublicServer: [f,g] -> SecretServer 
 
     p1 :: data1 :: sch1 -> SecretServer 
     p2 :: data2 :: sch2 -> SecretServer 
-
-    SecretSever: Result1 -> p1 
-    SecretSever: Result2 -> p2 
+                       
+    SecretSever: Result1 ->DP p1 
+    SecretSever: Result2 ->DP p2 
 -}
 
 
@@ -115,10 +118,11 @@ gS (p@Proxy :* ls) s k = do
         spec <- getLine
         return (read spec :: [(String,String)])
      reify p spec $ \ts -> do
-      t1 <- (p, ts) ~> s
-      case ls of
-         Nil      -> locally' s k (\un -> un t1)
-         (_ :* _) -> undefined -- gS ls s (\tsrs -> locally' s k (\un -> merge (un t1) (un tsrs)))
+       t1 <- (p, ts) ~> s
+       case ls of
+          Nil      -> locally' s k (\un -> un t1)
+          (_ :* _) -> gS ls s $ \tsrs -> locally2 s k $ \un -> let m = merge (un t1) (un tsrs)
+                                                               in withTableA m m          
 
 -- An insight! We need a special locally that separates pure from Choreo
 -- computations to make gS type-check. The good news is that it is a derived operation! 
@@ -127,10 +131,20 @@ locally' p k u = do
    al <- locally p $ \un -> return $ u un   
    k al
 
+locally2 :: (All KnownTy ts, KnownSymbol l) 
+         => Proxy l -> (Table ts @ l -> Choreo IO b) -> (Unwrap l -> Table ts) -> Choreo IO b
+locally2 p k u = do
+   al <- locally p $ \un -> return $ u un   
+   k al
+
+-- something like that 
+-- withTableAtLoc :: Table @ l -> (All KnownTy ts => r) -> r
+
+
 -- If everything works, this piece of code will ask for two schemas and show the aggregated one
 p :: Choreo IO ()  
 p = gS (h1 :* Nil) pserver $ \ts -> do
-   locally pserver $ \un -> putStrLn $ show $ un ts 
+   locally pserver $ \un -> withTable (un ts) $ putStrLn $ show (un ts) 
    (pserver, ts) ~> h1 
    return ()
 
