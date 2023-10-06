@@ -47,7 +47,7 @@ data ChoreoSig m a where
   ReifyTable :: KnownSymbol l
              => Proxy l
              -> SchemaU @ l
-             -> (forall ts . All KnownTy ts => Table ts @ l -> Choreo m r)
+             -> (forall ts . Table ts @ l -> Choreo m r)
              -> ChoreoSig m r
 
 -- | Monad for writing choreographies.
@@ -146,7 +146,7 @@ cond' (l, m) c = do
 reify :: KnownSymbol l
       => Proxy l
       -> SchemaU @ l
-      -> (forall ts . All KnownTy ts => Table ts @ l -> Choreo m r)
+      -> (forall ts . Table ts @ l -> Choreo m r)
       -> Choreo m r
 reify p spec k = toFreer $ ReifyTable p spec k 
 
