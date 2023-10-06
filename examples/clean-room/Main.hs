@@ -108,7 +108,7 @@ pserver = Proxy
 
 
 -- Send all the schemas to the Public server 
-gS :: (All KnownSymbol ls, KnownSymbol l', KnownSymbol l)
+gS :: forall ls l' l r . (All KnownSymbol ls, KnownSymbol l', KnownSymbol l)
    => NP Proxy (l : ls) 
    -> Proxy l' 
    -> (forall ts. Table ts @ l' -> Choreo IO r) 
@@ -131,13 +131,10 @@ locally' p k u = do
    al <- locally p $ \un -> return $ u un   
    k al
 
--- something like that 
--- withTableAtLoc :: Table @ l -> (All KnownTy ts => r) -> r
-
-
 -- If everything works, this piece of code will ask for two schemas and show the aggregated one
 p :: Choreo IO ()  
 p = gS (h1 :* Nil) pserver $ \ts -> do
+
    locally pserver $ \un -> putStrLn $ withTable (un ts) $ show $ un ts 
    (pserver, ts) ~*~> h1 
    return ()
