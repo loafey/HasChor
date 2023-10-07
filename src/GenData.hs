@@ -99,44 +99,9 @@ merge (Table (t :* ts1)) ts2 = Table (t :* res)
   where Table res = merge (Table ts1) ts2
 
 
-
-newtype Dummy ts = Dummy (Table ts)
-
-{- An empty dictionary is "Nil" -}
-dnil :: Dummy '[]
-dnil =  Dummy (Table Nil)
-
-{- We can extend the dictionary r with y given that y is known -}
-dcons :: forall y ys. KnownTy y => Dummy ys -> Dummy (y : ys)
-dcons (Dummy (Table np)) = Dummy $ Table $ K "" :*: cType @y :* np 
-
-dummy :: All KnownTy ts => Proxy ts -> Table ts 
-dummy p = let Dummy tab = cpara_SList (Proxy @KnownTy) dnil dcons in tab 
-
-instance All KnownTy ts => Read (Table ts) where
-  readPrec :: ReadPrec (Table ts)
-  readPrec = do
-    ls <- readPrec :: ReadPrec [(String,String)]
-    case buildSchema (Proxy :: Proxy (Table ts)) ls of
-        Just t  -> return t
-        Nothing -> error "Table has a wrong indicated typed!"
-
-buildSchema :: forall ts . All KnownTy ts => Proxy (Table ts) -> [(String,String)] -> Maybe (Table ts)
-buildSchema p@Proxy = buildSchema' $ dummy (Proxy :: Proxy ts)  
-
-buildSchema' :: All KnownTy ts => Table ts -> [(String,String)] -> Maybe (Table ts)
-buildSchema' (Table Nil) [] =  return $ Table Nil
-buildSchema' (Table (K _ :*: t :* rs)) ((name,ty):ps) =
-     reifyTy ty $ \ct -> do 
-      rest <- buildSchema' (Table rs) ps
-      return $ Table $ K name :*: cType :* repl rest
-
 -- Tests 
 table1 :: Table '[ 'TInt, 'TBool]
 table1 = Table $ K "id" :*: STInt :* K "covid" :*: STBool :* Nil
-
--- >>> read "[(\"id\",\"STInt\"),(\"covid\",\"STBool\")]" :: Table '[ 'TInt, 'TBool]
--- K "id" :*: Int :* K "covid" :*: Bool :* Nil
 
 -- >>> show table1
 -- "[(\"id\",\"Int\"),(\"covid\",\"Bool\")]"
