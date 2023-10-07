@@ -44,13 +44,6 @@ data ChoreoSig m a where
        -> (a -> Choreo m b)
        -> ChoreoSig m b
 
-  CommT :: (KnownSymbol l, KnownSymbol l')
-       => Proxy l
-       -> Table ts @ l
-       -> Proxy l'
-       -> ChoreoSig m (Table ts @ l')
-
-
   ReifyTable :: KnownSymbol l
              => Proxy l
              -> SchemaU @ l
@@ -92,18 +85,6 @@ epp c l' = interpFreer handler c
     handler (ReifyTable l spec k)
       | toLocTm l == l' = reifySchema (unwrap spec) (\ts -> epp (k (Wrap ts)) l')
       | otherwise       = epp (k @'[] Empty) l'
-    handler (CommT s (tab :: Table ts @ l) r)
-      | toLocTm s == l' = withTable (unwrap tab) $ send (unwrap tab) (toLocTm r) >> return Empty
-      | toLocTm r == l' = wrap <$> withTable (unwrap tab) (recv (toLocTm s))
-      | otherwise       = return Empty
-
-
-{- 
-
-compile :: [LocTm] -> Choreo m a -> [(LocTm, Network m a)]
-compile ls p = map (\l -> (l, epp p l)) ls
-
--}
 
 -- * Choreo operations
 -- | Perform a local computation at a given location.
@@ -160,5 +141,3 @@ reify :: KnownSymbol l
       -> (forall ts . Table ts @ l -> Choreo m r)
       -> Choreo m r
 reify p spec k = toFreer $ ReifyTable p spec k
-
-(~*~>) (c, tab) s = toFreer $ CommT c tab s
