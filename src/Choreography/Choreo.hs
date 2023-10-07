@@ -14,8 +14,9 @@ import Control.Monad.Freer
 import Data.List
 import Data.Proxy
 import GHC.TypeLits
-import GenData (Table, SchemaU, reifySchema, Dummy)
+import GenData (Table, SchemaU, reifySchema, KnownTy, withTable)
 import Control.Monad (join)
+import Data.SOP (All)
 
 -- * The Choreo monad
 
@@ -46,7 +47,7 @@ data ChoreoSig m a where
   ReifyTable :: KnownSymbol l
              => Proxy l
              -> SchemaU @ l
-             -> (forall ts . Dummy ts => Table ts @ l -> Choreo m r)
+             -> (forall ts . Table ts @ l -> Choreo m r)
              -> ChoreoSig m r
 
 -- | Monad for writing choreographies.
@@ -84,14 +85,6 @@ epp c l' = interpFreer handler c
     handler (ReifyTable l spec k)
       | toLocTm l == l' = reifySchema (unwrap spec) (\ts -> epp (k (Wrap ts)) l')
       | otherwise       = epp (k @'[] Empty) l'
-
-
-{- 
-
-compile :: [LocTm] -> Choreo m a -> [(LocTm, Network m a)]
-compile ls p = map (\l -> (l, epp p l)) ls
-
--}
 
 -- * Choreo operations
 -- | Perform a local computation at a given location.
@@ -145,7 +138,6 @@ cond' (l, m) c = do
 reify :: KnownSymbol l
       => Proxy l
       -> SchemaU @ l
-      -> (forall ts . Dummy ts => Table ts @ l -> Choreo m r)
+      -> (forall ts . Table ts @ l -> Choreo m r)
       -> Choreo m r
-reify p spec k = toFreer $ ReifyTable p spec k 
-
+reify p spec k = toFreer $ ReifyTable p spec k

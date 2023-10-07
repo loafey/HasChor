@@ -30,9 +30,9 @@ main = do
     "pserver" -> runChoreography cfg p "pserver"
   return ()
   where
-    cfg = mkHttpConfig [ ("h1", ("localhost", 4242))
-                       , ("h2", ("localhost", 4343))
-                       , ("pserver", ("localhost", 4344))
+    cfg = mkHttpConfig [ ("h1", ("localhost", 5000))
+                       , ("h2", ("localhost", 5001))
+                       , ("pserver", ("localhost", 5002))
                        ]
 
 {-
@@ -43,22 +43,6 @@ open 3 terminals, and execute
   3. cabal run clean-room -- h2
 
 -}
-
-sch1 :: Table '[ 'TInt, 'TBool ]
-sch1 = Table $ K "id" :*: STInt :* K "covid" :*: STBool :* Nil
-
-sch2 :: Table '[ 'TInt, 'TInt ]
-sch2 = Table $ K "id" :*: STInt :* K "age" :*: STInt :* Nil
-
--- >>> show sch1
--- "(\"id\",\"STInt\"),(\"covid\",\"STBool\")"
-
--- >>> show sch2
--- "(\"id\",\"STInt\"),(\"age\",\"STInt\")"
-
--- >>> read "(\"id\",\"STInt\"),(\"age\",\"STInt\")"
-
-ttt = merge sch1 sch2
 
 h1 :: Proxy "h1"
 h1 = Proxy
@@ -95,39 +79,57 @@ pserver = Proxy
     p1: (f: (sch1 + sch2) -> Result1) -> PublicServer   (how to aggregate the schemas can be done in many ways) 
     p2: (g: (sch1 + sch2) -> Result2) -> PublicServer 
 
+    PublicServer [f,g] -> p1
+    PublicServer [f,g] -> p2 
+
     PublicServer: [f,g] -> SecretServer 
 
     p1 :: data1 :: sch1 -> SecretServer 
     p2 :: data2 :: sch2 -> SecretServer 
-
-    SecretSever: Result1 -> p1 
-    SecretSever: Result2 -> p2 
+                       
+    SecretSever: Result1 ->DP p1 
+    SecretSever: Result2 ->DP p2 
 -}
 
 
--- Send all the schemas to the Public server 
-gS :: (All KnownSymbol ls, KnownSymbol l', KnownSymbol l)
-   => NP Proxy (l : ls) -> Proxy l' -> (forall ff. Table ff @ l' -> Choreo IO r) -> Choreo IO r
-gS (p@Proxy :* ls) s k = do
+-- An insight: We need a special locally that separates pure from Choreo
+-- computations to make collectSchemas type-check. The good news is that it is a derived operation! 
+locally' :: KnownSymbol l => Proxy l -> (a @ l -> Choreo IO b) -> (Unwrap l -> a) -> Choreo IO b
+locally' p k u = do
+   al <- locally p $ \un -> return $ u un   
+   k al
+
+-- Send all the schemas to the public server, and they all get reified here!  
+collectSchemas :: forall ls l' l r . (All KnownSymbol ls, KnownSymbol l', KnownSymbol l)
+   => NP Proxy (l : ls) 
+   -> Proxy l' 
+   -> (forall ts. Table ts @ l' -> Choreo IO r) 
+   -> Choreo IO r
+collectSchemas (p@Proxy :* ls) s k = do
      spec <- locally p $ \un -> do
         spec <- getLine
         return (read spec :: [(String,String)])
-     reify p spec $ \ts -> do
-      t1 <- (p, ts) ~> s
-      case ls of
-         Nil      -> locally' s k (\un -> un t1)
-         (_ :* _) -> gS ls s (\tsrs -> locally' s k (\un -> merge (un t1) (un tsrs)))
-
--- An insight! We need a special locally that separates pure from Choreo
--- computations to make gS type-check. The good news is that it is a derived operation! 
-locally' :: KnownSymbol l => Proxy l -> (a @ l -> Choreo IO b) -> (Unwrap l -> a) -> Choreo IO b
-locally' p k u = do
-   al <- locally p $ \un -> return (u un)
-   k al
+     sch <- (p, spec) ~> s 
+     reify s sch $ \ts -> do
+        case ls of
+          Nil      -> locally' s k (\un -> un ts)
+          (_ :* _) -> collectSchemas ls s $ \tsrs -> locally' s k $ \un -> merge (un ts) (un tsrs)
 
 -- If everything works, this piece of code will ask for two schemas and show the aggregated one
-p :: Choreo IO (() @ "pserver")  
-p = gS (h1 :* h2 :* Nil) pserver $ \ts -> do
-   locally pserver $ \un -> putStrLn $ show $ un ts 
+p :: Choreo IO ()  
+p = collectSchemas locations pserver $ \ts -> do
+   tog <- locally pserver $ \un -> do 
+    let schema = show $ un ts
+    putStrLn schema
+    return schema 
+   sendBackSchema pserver tog locations 
+   return ()
+  where locations = h1 :* h2 :* Nil 
 
-
+sendBackSchema :: (KnownSymbol s, All KnownSymbol ls) 
+                => Proxy s -> String @ s -> NP Proxy ls -> Choreo IO ()
+sendBackSchema s tog Nil       = return ()
+sendBackSchema s tog (l :* ls) = do 
+  tog' <- (s, tog) ~> l
+  locally l $ \un -> putStrLn $ un tog' 
+  sendBackSchema s tog ls
