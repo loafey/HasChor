@@ -92,7 +92,7 @@ epp c l' = interpFreer handler c
     handler (ReifyTable l spec k)
       | toLocTm l == l' = reifySchema (unwrap spec) (\ts -> epp (k (Wrap ts)) l')
       | otherwise       = epp (k @'[] Empty) l'
-    handler (CommT s tab r)
+    handler (CommT s (tab :: Table ts @ l) r)
       | toLocTm s == l' = withTable (unwrap tab) $ send (unwrap tab) (toLocTm r) >> return Empty
       | toLocTm r == l' = wrap <$> withTable (unwrap tab) (recv (toLocTm s))
       | otherwise       = return Empty

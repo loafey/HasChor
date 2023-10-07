@@ -47,14 +47,6 @@ instance KnownTy t => Show (ColumnT t) where
 newtype Table (ts :: [Ty]) = Table { repl :: NP (K String :*: ColumnT) ts }
 
 
-data C (c :: Constraint) r where
-  C :: Proxy c -> r -> C c r
-
-withColumnC :: ColumnT t -> (KnownTy t => r) -> C (KnownTy t) r
-withColumnC c r = case c of
-  STInt  -> C Proxy r
-  STBool -> C Proxy r
-
 withColumn :: ColumnT t -> (KnownTy t => r) -> r
 withColumn c r = case c of
   STInt  -> r
@@ -64,16 +56,7 @@ withTable :: Table ts -> (All KnownTy ts => r) -> r
 withTable (Table ts) = go ts
   where go :: NP (K String :*: ColumnT) ts -> (All KnownTy ts => r) -> r
         go Nil       r = r
-        go (c@(K name :*: t) :* cs) r = withColumn t $ go cs r
-
--- withTableA :: All KnownTy ts => Table ts -> r -> r
-withTableA :: All KnownTy ts => Table ts -> r -> r
-withTableA (Table ts) = go ts
-  where go :: All KnownTy ts => NP (K String :*: ColumnT) ts -> r -> r
-        go Nil       r = r
-        go (c@(K name :*: t) :* cs) r = withColumn t $ go cs r
-
-
+        go (c@(K _ :*: t) :* cs) r = withColumn t $ go cs r
 
 newtype Shows ts = Shows (NP (K String :*: ColumnT) ts -> String)
 
@@ -162,15 +145,6 @@ instance All KnownTy ts => Read (Table ts) where
 -- Int
 
 
-equalT :: ColumnT t -> ColumnT t' -> Maybe (Refl t t')
-equalT STInt STInt   = return Refl
-equalT STBool STBool = return Refl
-equalT _      _      = Nothing
-
-data Refl a b where
-    Refl :: Refl a a
-
-
 type NameSpec = String
 type TySpec   = String
 type SchemaU  = [(NameSpec, TySpec)]
@@ -209,8 +183,20 @@ merge (Table (t :* ts1)) ts2 = Table (t :* res)
 
 
 
+-- newtype Dummy ts = Dummy (Table ts)
+
+-- {- An empty dictionary is "Nil" -}
+-- dnil :: Dummy '[]
+-- dnil =  Dummy (Table Nil)
+
 -- {- We can extend the dictionary r with y given that y is known -}
--- acons :: forall y ys ts2. KnownTy y => Appp ys ts2 -> Appp (y : ys) ts2
--- acons (Appp ys) = Appp ys 
+-- dcons :: forall y ys. KnownTy y => Dummy ys -> Dummy (y : ys)
+-- dcons (Dummy (Table np)) = Dummy $ Table $ K "" :*: cType @y :* np 
 
+-- class DummyT ts where
+--   dummy :: Table ts 
 
+-- instance All KnownTy ts => DummyT ts where
+--    dummy :: All KnownTy ts => Table ts
+--    dummy = r 
+--      where Dummy r = cpara_SList (Proxy @KnownTy) dnil dcons
