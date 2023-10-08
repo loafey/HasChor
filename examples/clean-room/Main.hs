@@ -100,7 +100,7 @@ locally' p k u = do
    k al
 
 -- Send all the schemas to the public server, and they all get reified here!  
-collectSchemas :: forall ls l' l r . (All KnownSymbol ls, KnownSymbol l', KnownSymbol l)
+collectSchemas :: (All KnownSymbol ls, KnownSymbol l', KnownSymbol l)
    => NP Proxy (l : ls) 
    -> Proxy l' 
    -> (forall ts. Table ts @ l' -> Choreo IO r) 
