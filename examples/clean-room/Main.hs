@@ -39,9 +39,10 @@ main = do
 
 open 3 terminals, and execute
   1. cabal run clean-room -- pserver
-  2. cabal run clean-room -- h1
+  2. cabal run clean-room -- h1 
+     Write: [("id","STInt")]
   3. cabal run clean-room -- h2
-
+     Write: [("covid","STBool")]
 -}
 
 h1 :: Proxy "h1"
@@ -91,14 +92,6 @@ pserver = Proxy
     SecretSever: Result2 ->DP p2 
 -}
 
-
--- An insight: We need a special locally that separates pure from Choreo
--- computations to make collectSchemas type-check. The good news is that it is a derived operation! 
-locally' :: KnownSymbol l => Proxy l -> (a @ l -> Choreo IO b) -> (Unwrap l -> a) -> Choreo IO b
-locally' p k u = do
-   al <- locally p $ \un -> return $ u un   
-   k al
-
 -- Send all the schemas to the public server, and they all get reified here!  
 collectSchemas :: (All KnownSymbol ls, KnownSymbol l', KnownSymbol l)
    => NP Proxy (l : ls) 
@@ -112,8 +105,10 @@ collectSchemas (p@Proxy :* ls) s k = do
      sch <- (p, spec) ~> s 
      reify s sch $ \ts -> do
         case ls of
-          Nil      -> locally' s k (\un -> un ts)
-          (_ :* _) -> collectSchemas ls s $ \tsrs -> locally' s k $ \un -> merge (un ts) (un tsrs)
+          Nil      -> k ts
+          (_ :* _) -> collectSchemas ls s $ \tsrs -> 
+            locally s (\un -> return (merge (un ts) (un tsrs))) >>= k  
+            
 
 -- If everything works, this piece of code will ask for two schemas and show the aggregated one
 p :: Choreo IO ()  
@@ -126,10 +121,11 @@ p = collectSchemas locations pserver $ \ts -> do
    return ()
   where locations = h1 :* h2 :* Nil 
 
-sendBackSchema :: (KnownSymbol s, All KnownSymbol ls) 
-                => Proxy s -> String @ s -> NP Proxy ls -> Choreo IO ()
-sendBackSchema s tog Nil       = return ()
+sendBackSchema :: (KnownSymbol s, KnownSymbol l, All KnownSymbol ls) 
+                => Proxy s -> String @ s -> NP Proxy (l : ls) -> Choreo IO ()
 sendBackSchema s tog (l :* ls) = do 
   tog' <- (s, tog) ~> l
-  locally l $ \un -> putStrLn $ un tog' 
-  sendBackSchema s tog ls
+  locally l $ \un -> putStrLn $ un tog'   -- show the join schema at every client 
+  case ls of 
+    Nil      -> return () 
+    (_ :* _) -> sendBackSchema s tog ls

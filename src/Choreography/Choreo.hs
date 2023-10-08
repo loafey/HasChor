@@ -141,3 +141,5 @@ reify :: KnownSymbol l
       -> (forall ts . Table ts @ l -> Choreo m r)
       -> Choreo m r
 reify p spec k = toFreer $ ReifyTable p spec k
+
+
