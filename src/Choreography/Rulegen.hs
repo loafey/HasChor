@@ -141,7 +141,8 @@ mkCondRules endpoint endpoints = properRule : otherRules
     otherRules = map (\endpoint -> PragmaD $ RuleP (ruleName endpoint) Nothing foralls (lhs endpoint) (rhs endpoint) AllPhases) (filter ((/=) endpoint) endpoints)
       where
         rhs :: String -> Exp
-        rhs endpoint = UInfixE (AppE (VarE $ mkName "recv") (AppE (VarE $ mkName "toLocTm") (VarE $ mkName endpoint))) (VarE $ mkName ">>=") (LamE [VarP $ mkName "x"] (AppE (VarE $ mkName "c") (VarE $ mkName "x")))
+--        rhs endpoint = UInfixE (AppE (VarE $ mkName "recv") (AppE (VarE $ mkName "toLocTm") (VarE $ mkName endpoint))) (VarE $ mkName ">>=") (LamE [VarP $ mkName "x"] (AppE (VarE $ mkName "c") (VarE $ mkName "x")))
+        rhs endpoint = UInfixE (AppE (VarE $ mkName "recv") (AppE (VarE $ mkName "toLocTm") (VarE $ mkName endpoint))) (VarE $ mkName ">>=") (LamE [VisAP $ VarP $ mkName "x"] (AppE (VarE $ mkName "c") (VarE $ mkName "x")))
 
     ruleName :: String -> String
     ruleName endpoint = concat ["CHOREORULES cond", endpoint]

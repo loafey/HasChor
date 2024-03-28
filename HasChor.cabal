@@ -1,5 +1,5 @@
 cabal-version:      2.4
-name:               HasChor
+name:               HasChor2
 version:            0.1.0.0
 synopsis:           Choreographic programming in Haskell
 license:            BSD-3-Clause
@@ -24,181 +24,190 @@ library
         Choreography.Rulegen
         Control.Monad.Freer
     build-depends:
-        base ^>= 4.16.4.0,
-        bytestring ^>= 0.11.4.0,
-        http-client ^>= 0.7.13.1,
-        servant ^>= 0.19.1,
-        servant-client ^>= 0.19,
-        servant-server ^>= 0.19.2,
-        unordered-containers ^>= 0.2.19.1,
-        warp ^>= 3.3.23,
+        base,
+        bytestring,
+        http-client,
+        servant,
+        servant-client,
+        servant-server,
+        unordered-containers,
+        warp,
         template-haskell
 
-executable bank-2pc
-    hs-source-dirs:   examples/bank-2pc
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        HasChor,
-        base ^>= 4.16.4.0,
-        time ^>= 1.11.1.1,
-        split ^>= 0.2.3.5
+-- executable bank-2pc
+--     hs-source-dirs:   examples/bank-2pc
+--     main-is:          Main.hs
+--     default-language: GHC2021
+--     build-depends:
+--         HasChor,
+--         base ^>= 4.16.4.0,
+--         time ^>= 1.11.1.1,
+--         split ^>= 0.2.3.5
 
-executable bookseller-0-network
-    hs-source-dirs:   examples/bookseller-0-network
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        HasChor,
-        base ^>= 4.16.4.0,
-        time ^>= 1.11.1.1
+-- executable bookseller-0-network
+--     hs-source-dirs:   examples/bookseller-0-network
+--     main-is:          Main.hs
+--     default-language: GHC2021
+--     build-depends:
+--         HasChor,
+--         base ^>= 4.16.4.0,
+--         time ^>= 1.11.1.1
 
-executable average-salary
-    hs-source-dirs:   examples/average
+-- executable average-salary
+--     hs-source-dirs:   examples/average
+--     main-is:          Main.hs
+--     default-language: GHC2021
+--     build-depends:
+--         HasChor2,
+--         base,
+--         time,
+--         template-haskell,
+--         deepseq
+--     ghc-options: -ddump-splices -ddump-rule-firings -O3
+
+-- executable bookseller-1-simple
+--     hs-source-dirs:   examples/bookseller-1-simple
+--     main-is:          Main.hs
+--     default-language: GHC2021
+--     build-depends:
+--         HasChor,
+--         base ^>= 4.16.4.0,
+--         time ^>= 1.11.1.1
+--     ghc-options: -ddump-splices -ddump-rule-firings -O3
+
+-- executable bookseller-2-higher-order
+--     hs-source-dirs:   examples/bookseller-2-higher-order
+--     main-is:          Main.hs
+--     default-language: GHC2021
+--     build-depends:
+--         HasChor,
+--         base ^>= 4.16.4.0,
+--         time ^>= 1.11.1.1
+--     ghc-options: -ddump-splices -ddump-rule-firings -O3
+
+-- executable bookseller-3-loc-poly
+--     hs-source-dirs:   examples/bookseller-3-loc-poly
+--     main-is:          Main.hs
+--     default-language: GHC2021
+--     build-depends:
+--         HasChor,
+--         base ^>= 4.16.4.0,
+--         time ^>= 1.11.1.1
+--     ghc-options: -ddump-splices -ddump-rule-firings -O3
+
+-- executable diffiehellman
+--     hs-source-dirs:   examples/diffiehellman
+--     main-is:          Main.hs
+--     default-language: GHC2021
+--     build-depends:
+--         HasChor,
+--         base ^>= 4.16.4.0,
+--         time ^>= 1.11.1.1,
+--         random ^>= 1.2.1.1
+--     ghc-options: -ddump-splices -ddump-rule-firings -O3
+
+-- executable karatsuba
+--     hs-source-dirs:   examples/karatsuba
+--     main-is:          Main.hs
+--     default-language: GHC2021
+--     build-depends:
+--         HasChor2,
+--       --  async,
+--         base,
+--         containers
+--     ghc-options: -ddump-splices -ddump-rule-firings -O3
+
+-- executable kvs1
+--     hs-source-dirs:   examples/kvs-1-simple
+--     main-is:          Main.hs
+--     default-language: GHC2021
+--     build-depends:
+--         HasChor,
+--         base ^>= 4.16.4.0,
+--         time ^>= 1.11.1.1,
+--         containers ^>= 0.6.5.1
+--     ghc-options: -ddump-splices -ddump-rule-firings -O3
+
+-- executable kvs2
+--     hs-source-dirs:   examples/kvs-2-primary-backup
+--     main-is:          Main.hs
+--     default-language: GHC2021
+--     build-depends:
+--         HasChor,
+--         base ^>= 4.16.4.0,
+--         time ^>= 1.11.1.1,
+--         containers ^>= 0.6.5.1
+--     ghc-options: -ddump-splices -ddump-rule-firings -O3
+
+-- executable kvs3
+--     hs-source-dirs:   examples/kvs-3-higher-order
+--     main-is:          Main.hs
+--     default-language: GHC2021
+--     build-depends:
+--         HasChor,
+--         base ^>= 4.16.4.0,
+--         time ^>= 1.11.1.1,
+--         containers ^>= 0.6.5.1
+--     ghc-options: -ddump-splices -ddump-rule-firings -O3
+
+-- executable kvs4
+--     hs-source-dirs:   examples/kvs-4-loc-poly
+--     main-is:          Main.hs
+--     default-language: GHC2021
+--     build-depends:
+--         HasChor,
+--         base ^>= 4.16.4.0,
+--         time ^>= 1.11.1.1,
+--         containers ^>= 0.6.5.1
+--     ghc-options: -ddump-splices -ddump-rule-firings -O3
+
+-- executable mergesort
+--     hs-source-dirs:   examples/mergesort
+--     main-is:          Main.hs
+--     default-language: GHC2021
+--     build-depends:
+--         HasChor2,
+--         base,
+--         time,
+--         containers
+--     ghc-options: -ddump-splices -ddump-rule-firings -O3
+
+executable tricky
+    hs-source-dirs:   examples/tricky
     main-is:          Main.hs
     default-language: GHC2021
     build-depends:
-        HasChor,
-        base ^>= 4.16.4.0,
-        time ^>= 1.11.1.1,
-        template-haskell,
-        deepseq
+        HasChor2,
+        base,
     ghc-options: -ddump-splices -ddump-rule-firings -O3
 
-executable bookseller-1-simple
-    hs-source-dirs:   examples/bookseller-1-simple
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        HasChor,
-        base ^>= 4.16.4.0,
-        time ^>= 1.11.1.1
-    ghc-options: -ddump-splices -ddump-rule-firings -O3
+-- executable quicksort
+--     hs-source-dirs:   examples/quicksort
+--     main-is:          Main.hs
+--     default-language: GHC2021
+--     build-depends:
+--         HasChor,
+--         base ^>= 4.16.3.0,
+--         time ^>= 1.11.1.1,
+--         containers ^>= 0.6.5.1,
+--         async ^>= 2.2.4
+--     ghc-options: -ddump-splices -ddump-rule-firings -O3
 
-executable bookseller-2-higher-order
-    hs-source-dirs:   examples/bookseller-2-higher-order
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        HasChor,
-        base ^>= 4.16.4.0,
-        time ^>= 1.11.1.1
-    ghc-options: -ddump-splices -ddump-rule-firings -O3
+-- executable ring-leader
+--     hs-source-dirs:   examples/ring-leader
+--     main-is:          Main.hs
+--     default-language: GHC2021
+--     build-depends:
+--         HasChor,
+--         base ^>= 4.16.4.0,
+--         transformers ^>= 0.5.6.2
+--     ghc-options: -ddump-splices -ddump-rule-firings -O3
 
-executable bookseller-3-loc-poly
-    hs-source-dirs:   examples/bookseller-3-loc-poly
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        HasChor,
-        base ^>= 4.16.4.0,
-        time ^>= 1.11.1.1
-    ghc-options: -ddump-splices -ddump-rule-firings -O3
-
-executable diffiehellman
-    hs-source-dirs:   examples/diffiehellman
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        HasChor,
-        base ^>= 4.16.4.0,
-        time ^>= 1.11.1.1,
-        random ^>= 1.2.1.1
-    ghc-options: -ddump-splices -ddump-rule-firings -O3
-
-executable karatsuba
-    hs-source-dirs:   examples/karatsuba
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        HasChor,
-        async ^>= 2.2.4,
-        base ^>= 4.16.3.0,
-        containers ^>= 0.6.5.1
-    ghc-options: -ddump-splices -ddump-rule-firings -O3
-
-executable kvs1
-    hs-source-dirs:   examples/kvs-1-simple
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        HasChor,
-        base ^>= 4.16.4.0,
-        time ^>= 1.11.1.1,
-        containers ^>= 0.6.5.1
-    ghc-options: -ddump-splices -ddump-rule-firings -O3
-
-executable kvs2
-    hs-source-dirs:   examples/kvs-2-primary-backup
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        HasChor,
-        base ^>= 4.16.4.0,
-        time ^>= 1.11.1.1,
-        containers ^>= 0.6.5.1
-    ghc-options: -ddump-splices -ddump-rule-firings -O3
-
-executable kvs3
-    hs-source-dirs:   examples/kvs-3-higher-order
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        HasChor,
-        base ^>= 4.16.4.0,
-        time ^>= 1.11.1.1,
-        containers ^>= 0.6.5.1
-    ghc-options: -ddump-splices -ddump-rule-firings -O3
-
-executable kvs4
-    hs-source-dirs:   examples/kvs-4-loc-poly
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        HasChor,
-        base ^>= 4.16.4.0,
-        time ^>= 1.11.1.1,
-        containers ^>= 0.6.5.1
-    ghc-options: -ddump-splices -ddump-rule-firings -O3
-
-executable mergesort
-    hs-source-dirs:   examples/mergesort
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        HasChor,
-        base ^>= 4.16.4.0,
-        time ^>= 1.11.1.1,
-        containers ^>= 0.6.5.1
-    ghc-options: -ddump-splices -ddump-rule-firings -O3
-
-executable quicksort
-    hs-source-dirs:   examples/quicksort
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        HasChor,
-        base ^>= 4.16.3.0,
-        time ^>= 1.11.1.1,
-        containers ^>= 0.6.5.1,
-        async ^>= 2.2.4
-    ghc-options: -ddump-splices -ddump-rule-firings -O3
-
-executable ring-leader
-    hs-source-dirs:   examples/ring-leader
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        HasChor,
-        base ^>= 4.16.4.0,
-        transformers ^>= 0.5.6.2
-    ghc-options: -ddump-splices -ddump-rule-firings -O3
-
-executable playground
-    hs-source-dirs:   examples/playground
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        HasChor,
-        base ^>= 4.16.4.0,
-    ghc-options: -ddump-splices -ddump-rule-firings -O3
+-- executable playground
+--     hs-source-dirs:   examples/playground
+--     main-is:          Main.hs
+--     default-language: GHC2021
+--     build-depends:
+--         HasChor,
+--         base ^>= 4.16.4.0,
+--     ghc-options: -ddump-splices -ddump-rule-firings -O3
