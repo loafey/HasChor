@@ -161,16 +161,16 @@ library
 --         containers ^>= 0.6.5.1
 --     ghc-options: -ddump-splices -ddump-rule-firings -O3
 
--- executable mergesort
---     hs-source-dirs:   examples/mergesort
---     main-is:          Main.hs
---     default-language: GHC2021
---     build-depends:
---         HasChor2,
---         base,
---         time,
---         containers
---     ghc-options: -ddump-splices -ddump-rule-firings -O3
+executable mergesort
+    hs-source-dirs:   examples/mergesort
+    main-is:          Main.hs
+    default-language: GHC2021
+    build-depends:
+        HasChor2,
+        base,
+        time,
+        containers
+    ghc-options: -ddump-splices -ddump-rule-firings -O3
 
 executable tricky
     hs-source-dirs:   examples/tricky
