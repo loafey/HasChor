@@ -14,6 +14,8 @@ import Data.Time
 import GHC.TypeLits (KnownSymbol)
 import System.Environment
 
+import Language.Haskell.TH
+
 -- * ROBERT: Does not work, as sort and merge are both location polymorphic and recursive
 
 divide :: [a] -> ([a], [a])
@@ -102,6 +104,14 @@ merge a b c lhs rhs = do
           (b, lhs) ~> a
     False -> do
       (c, rhs) ~> a
+
+newDeclarationGroup
+
+$(genSpec "merge")
+
+-- $(do i <- reify (mkName "merge")
+--      runIO $ putStrLn $ show i
+--      return $ [PragmaD $ RuleP "test" Nothing [] (VarE $ mkName "++") (VarE $ mkName "<>") AllPhases])
 
 mainChoreo :: Choreo IO ()
 mainChoreo = do

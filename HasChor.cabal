@@ -169,7 +169,8 @@ executable mergesort
         HasChor2,
         base,
         time,
-        containers
+        containers,
+        template-haskell
     ghc-options: -ddump-splices -ddump-rule-firings -O3
 
 executable tricky

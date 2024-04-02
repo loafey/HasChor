@@ -2,6 +2,8 @@
 
 module Choreography.Rulegen where
 
+import Control.Monad
+
 import Language.Haskell.TH.Syntax
 
 compileFor :: Int -> [(String, (String, Int))] -> Q [Dec]
@@ -196,3 +198,97 @@ rewriteConvenience = [doubleArrow, condprime]
 
 -- "CHOREORULES cond server"  forall v c . cond (server, v)  c = broadcast (unwrap v) >> c (unwrap v)
 -- "CHOREORULES cond person1" forall v c . cond (person1, v) c = recv (toLocTm person1) >>= \x -> c x
+
+-- Generate Specialisation
+
+genSpec :: String -> Q [Dec]
+genSpec function = do
+  i <- reify (mkName function)
+  when (not $ isVarI i) (error "reify returned something that was not a value variable")
+  runIO $ putStrLn $ show i
+
+  undefined
+
+isVarI :: Info -> Bool
+isVarI (VarI _ _ _) = True
+isVarI _            = False
+
+{-@
+ForallT [ KindedTV a_6989586621679025463 SpecifiedSpec (ConT GHC.Types.Symbol)
+        , KindedTV b_6989586621679025464 SpecifiedSpec (ConT GHC.Types.Symbol)
+        , KindedTV c_6989586621679025465 SpecifiedSpec (ConT GHC.Types.Symbol)]
+        [AppT (ConT GHC.Internal.TypeLits.KnownSymbol) (VarT a_6989586621679025463)]
+        (AppT
+          (AppT ArrowT (AppT (ConT GHC.Internal.Data.Proxy.Proxy) (VarT a_6989586621679025463)))
+          (ForallT [] [AppT
+                         (ConT GHC.Internal.TypeLits.KnownSymbol)
+                         (VarT b_6989586621679025464)]
+                      (AppT
+                        (AppT
+                          ArrowT
+                          (AppT
+                            (ConT GHC.Internal.Data.Proxy.Proxy)
+                            (VarT b_6989586621679025464))
+                        )
+                        (ForallT [] [AppT
+                                      (ConT GHC.Internal.TypeLits.KnownSymbol)
+                                      (VarT c_6989586621679025465)]
+                                    (AppT
+                                      (AppT
+                                        ArrowT
+                                        (AppT
+                                          (ConT GHC.Internal.Data.Proxy.Proxy)
+                                          (VarT c_6989586621679025465))
+                                      )
+                                      (AppT
+                                        (AppT
+                                          ArrowT
+                                          (AppT
+                                            (AppT
+                                              (ConT Choreography.Location.@)
+                                              (AppT
+                                                ListT
+                                                (ConT GHC.Types.Int)
+                                              )
+                                            )
+                                            (VarT b_6989586621679025464)
+                                          )
+                                        )
+                                        (AppT
+                                          (AppT
+                                            ArrowT
+                                            (AppT
+                                              (AppT
+                                                (ConT Choreography.Location.@)
+                                                (AppT
+                                                  ListT
+                                                  (ConT GHC.Types.Int)
+                                                )
+                                              )
+                                              (VarT c_6989586621679025465)
+                                            )
+                                          )
+                                          (AppT
+                                            (AppT
+                                              (ConT Choreography.Choreo.Choreo)
+                                              (ConT GHC.Types.IO)
+                                            )
+                                            (AppT
+                                              (AppT
+                                                (ConT Choreography.Location.@)
+                                                (AppT
+                                                  ListT
+                                                  (ConT GHC.Types.Int)
+                                                )
+                                              )
+                                              (VarT a_6989586621679025463)
+                                            )
+                                          )
+                                        )
+                                      )
+                                    )
+                                  )
+                                )
+                              )
+                            )
+@-}
