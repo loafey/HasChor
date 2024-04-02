@@ -18,30 +18,9 @@ compileFor endpoint config = do
 mkRun :: Int -> [(String, (String, Int))] -> Q [Dec]
 mkRun endpoint config = [d| run' choreo = runChoreography (mkHttpConfig $(lift config)) choreo $( lift $ fst (config !! endpoint)) >> return () |]
 
-
--- run' choreo = runChoreography cfg choreo "server" >> return ()
---   where
---     cfg = mkHttpConfig [ ("person1", ("localhost", 4242))
---                        , ("person2", ("localhost", 4343))
---                        , ("person3", ("localhost", 4344))
---                        , ("server",  ("localhost", 4345))
---                        ]
-
--- | Given a list such as ["server", "person1"], will generate
---
--- @@@
--- server :: Proxy "server"
--- server = Proxy
---
--- person1 :: Proxy "person1"
--- person1 = Proxy
--- @@@
 mkProxies :: [String] -> [Dec]
-mkProxies = concatMap (\ep -> [noinline ep, mkSig ep, mkTerm ep])
+mkProxies = concatMap (\ep -> [mkSig ep, mkTerm ep])
   where
-    noinline :: String -> Dec
-    noinline ep = PragmaD $ InlineP (mkName ep) NoInline FunLike AllPhases
-
     mkSig :: String -> Dec
     mkSig endpoint = SigD (mkName endpoint) (AppT (ConT (mkName "Proxy")) (LitT (StrTyLit endpoint)))
 
@@ -53,10 +32,10 @@ mkLocallyRules :: String -> [String] -> [Dec]
 mkLocallyRules endpoint endpoints = properRule : otherRules
   where
     properRule :: Dec
-    properRule = PragmaD $ RuleP (locallyRulename endpoint) Nothing [f endpoint] (locallyLHS endpoint) locallyRHS AllPhases
+    properRule = PragmaD $ RuleP (locallyRulename endpoint) Nothing [f endpoint, projected endpoint] (locallyLHS endpoint) locallyRHS AllPhases
 
     otherRules :: [Dec]
-    otherRules = map (\endpoint -> PragmaD $ RuleP (locallyRulename endpoint) Nothing [f endpoint] (locallyLHS endpoint) otherRHS AllPhases) (filter ((/=) endpoint) endpoints)
+    otherRules = map (\endpoint -> PragmaD $ RuleP (locallyRulename endpoint) Nothing [f endpoint, projected endpoint] (locallyLHS endpoint) otherRHS AllPhases) (filter ((/=) endpoint) endpoints)
 
     locallyRulename :: String -> String
     locallyRulename endpoint = concat ["CHOREORULES locally", endpoint]
@@ -73,20 +52,23 @@ mkLocallyRules endpoint endpoints = properRule : otherRules
     f :: String -> RuleBndr
     f endpoint = TypedRuleVar (mkName "f") (ForallT [] [] (locallyForallQuantifier endpoint))
 
+    projected :: String -> RuleBndr
+    projected endpoint = TypedRuleVar (mkName endpoint) (ForallT [] [] (AppT (ConT (mkName "Proxy")) (LitT (StrTyLit endpoint))))
+
     locallyForallQuantifier :: String -> Type
     locallyForallQuantifier endpoint = ForallT [] [] (AppT (AppT ArrowT (ForallT [PlainTV (mkName "a") SpecifiedSpec] [] (AppT (AppT ArrowT (AppT (AppT (ConT (mkName "At")) (VarT $ mkName "a")) (LitT (StrTyLit endpoint)))) (VarT $ mkName "a")))) (AppT (VarT $ mkName "m") (VarT $ mkName "a")))
 
 -- | Generates send rules
 mkSendRules :: String -> [String] -> [Dec]
-mkSendRules endpoint endpoints = properRule ++ [otherRule from to | from <- endpoints', to <- endpoints', from /= to]
+mkSendRules endpoint endpoints = properRule ++ [otherRule from to | from <- endpoints', to <- endpoints', from /= to] ++ [idrules endpoint]
   where
     endpoints' :: [String]
     endpoints' = filter ((/=) endpoint) endpoints
 
     properRule :: [Dec]
     properRule =
-      [ PragmaD $ RuleP fromProperEP Nothing [RuleVar $ mkName "v", RuleVar $ mkName "recipient"] (lhs endpoint "recipient") (rhsTo "recipient") AllPhases,
-        PragmaD $ RuleP toProperEP Nothing [RuleVar $ mkName "from", RuleVar $ mkName "v"] (lhs "from" endpoint) (rhsFrom "from") AllPhases
+      [ PragmaD $ RuleP fromProperEP Nothing [RuleVar $ mkName "v", RuleVar $ mkName "recipient", projected endpoint] (lhs endpoint "recipient") (rhsTo "recipient") AllPhases,
+        PragmaD $ RuleP toProperEP Nothing [RuleVar $ mkName "from", RuleVar $ mkName "v", projected endpoint] (lhs "from" endpoint) (rhsFrom "from") AllPhases
       ]
       where
         fromProperEP :: String
@@ -110,8 +92,11 @@ mkSendRules endpoint endpoints = properRule ++ [otherRule from to | from <- endp
             lhs = VarE $ mkName "wrap"
             rhs = AppE (VarE $ mkName "recv") (AppE (VarE $ mkName "toLocTm") (VarE $ mkName from))
 
+    projected :: String -> RuleBndr
+    projected endpoint = TypedRuleVar (mkName endpoint) (ForallT [] [] (AppT (ConT (mkName "Proxy")) (LitT (StrTyLit endpoint))))
+
     otherRule :: String -> String -> Dec
-    otherRule from to = PragmaD $ RuleP name Nothing [RuleVar $ mkName "v"] (lhs from to) rhs AllPhases
+    otherRule from to = PragmaD $ RuleP name Nothing [RuleVar $ mkName "v", projected from, projected to] (lhs from to) rhs AllPhases
       where
         name :: String
         name = concat ["CHOREORULES send", from, to]
@@ -122,11 +107,23 @@ mkSendRules endpoint endpoints = properRule ++ [otherRule from to | from <- endp
         rhs :: Exp
         rhs = AppE (VarE $ mkName "return") (VarE $ mkName "mkEmpty")
 
+    idrules :: String -> Dec
+    idrules endpoint = PragmaD $ RuleP name Nothing [RuleVar $ mkName "v", projected endpoint] lhs rhs AllPhases
+      where
+        name :: String
+        name = concat ["CHOREORULES sendId", endpoint]
+
+        lhs :: Exp
+        lhs = UInfixE (TupE [Just $ VarE $ mkName endpoint, Just $ VarE $ mkName "v"]) (VarE $ mkName "~>") (VarE $ mkName endpoint)
+
+        rhs :: Exp
+        rhs = AppE (VarE $ mkName "return") (AppE (VarE $ mkName "wrap") (AppE (VarE $ mkName "unwrap") (VarE $ mkName "v")))
+
 mkCondRules :: String -> [String] -> [Dec]
 mkCondRules endpoint endpoints = properRule : otherRules
   where
     properRule :: Dec
-    properRule = PragmaD $ RuleP (ruleName endpoint) Nothing foralls (lhs endpoint) rhs AllPhases
+    properRule = PragmaD $ RuleP (ruleName endpoint) Nothing (foralls <> [projected endpoint]) (lhs endpoint) rhs AllPhases
       where
         rhs :: Exp
         rhs = UInfixE left (VarE $ mkName ">>") right
@@ -138,11 +135,14 @@ mkCondRules endpoint endpoints = properRule : otherRules
     lhs endpoint = UInfixE (TupE [Just $ VarE $ mkName endpoint, Just $ VarE $ mkName "v"]) (VarE $ mkName "cond") (VarE $ mkName "c")
 
     otherRules :: [Dec]
-    otherRules = map (\endpoint -> PragmaD $ RuleP (ruleName endpoint) Nothing foralls (lhs endpoint) (rhs endpoint) AllPhases) (filter ((/=) endpoint) endpoints)
+    otherRules = map (\endpoint -> PragmaD $ RuleP (ruleName endpoint) Nothing (foralls <> [projected endpoint]) (lhs endpoint) (rhs endpoint) AllPhases) (filter ((/=) endpoint) endpoints)
       where
         rhs :: String -> Exp
 --        rhs endpoint = UInfixE (AppE (VarE $ mkName "recv") (AppE (VarE $ mkName "toLocTm") (VarE $ mkName endpoint))) (VarE $ mkName ">>=") (LamE [VarP $ mkName "x"] (AppE (VarE $ mkName "c") (VarE $ mkName "x")))
         rhs endpoint = UInfixE (AppE (VarE $ mkName "recv") (AppE (VarE $ mkName "toLocTm") (VarE $ mkName endpoint))) (VarE $ mkName ">>=") (LamE [VisAP $ VarP $ mkName "x"] (AppE (VarE $ mkName "c") (VarE $ mkName "x")))
+
+    projected :: String -> RuleBndr
+    projected endpoint = TypedRuleVar (mkName endpoint) (ForallT [] [] (AppT (ConT (mkName "Proxy")) (LitT (StrTyLit endpoint))))
 
     ruleName :: String -> String
     ruleName endpoint = concat ["CHOREORULES cond", endpoint]
