@@ -214,6 +214,23 @@ isVarI (VarI _ _ _) = True
 isVarI _            = False
 
 {-@
+
+
+merge ::
+  KnownSymbol a =>
+  Proxy a ->
+  KnownSymbol b =>
+  Proxy b ->
+  KnownSymbol c =>
+  Proxy c ->
+  [Int] @ b ->
+  [Int] @ c ->
+  Choreo IO ([Int] @ a)
+
+
+builds this AST
+
+
 ForallT [ KindedTV a_6989586621679025463 SpecifiedSpec (ConT GHC.Types.Symbol)
         , KindedTV b_6989586621679025464 SpecifiedSpec (ConT GHC.Types.Symbol)
         , KindedTV c_6989586621679025465 SpecifiedSpec (ConT GHC.Types.Symbol)]
@@ -291,4 +308,107 @@ ForallT [ KindedTV a_6989586621679025463 SpecifiedSpec (ConT GHC.Types.Symbol)
                                 )
                               )
                             )
+
+
+
+
+
+
+merge ::
+  (KnownSymbol a, KnownSymbol b, KnownSymbol c) =>
+  Proxy a ->
+  Proxy b ->
+  Proxy c ->
+  [Int] @ b ->
+  [Int] @ c ->
+  Choreo IO ([Int] @ a)
+
+builds this AST
+
+
+(ForallT [ KindedTV a_6989586621679025463 SpecifiedSpec (ConT GHC.Types.Symbol)
+         , KindedTV b_6989586621679025464 SpecifiedSpec (ConT GHC.Types.Symbol)
+         , KindedTV c_6989586621679025465 SpecifiedSpec (ConT GHC.Types.Symbol)
+         ]
+         [ AppT (ConT GHC.Internal.TypeLits.KnownSymbol) (VarT a_6989586621679025463)
+         , AppT (ConT GHC.Internal.TypeLits.KnownSymbol) (VarT b_6989586621679025464)
+         , AppT (ConT GHC.Internal.TypeLits.KnownSymbol) (VarT c_6989586621679025465)
+         ]
+         (AppT
+           (AppT
+             ArrowT 
+             (AppT
+               (ConT GHC.Internal.Data.Proxy.Proxy)
+               (VarT a_6989586621679025463)
+             )
+           )
+           (AppT
+             (AppT
+               ArrowT
+               (AppT
+                 (ConT GHC.Internal.Data.Proxy.Proxy)
+                 (VarT b_6989586621679025464)
+               )
+             )
+             (AppT
+               (AppT
+                 ArrowT
+                 (AppT
+                   (ConT GHC.Internal.Data.Proxy.Proxy)
+                   (VarT c_6989586621679025465)
+                 )
+               )
+               (AppT
+                 (AppT
+                   ArrowT
+                   (AppT
+                     (AppT
+                       (ConT Choreography.Location.@)
+                       (AppT
+                         ListT
+                         (ConT GHC.Types.Int)
+                       )
+                     )
+                     (VarT b_6989586621679025464)
+                   )
+                 )
+                 (AppT
+                   (AppT
+                     ArrowT
+                     (AppT
+                       (AppT
+                         (ConT Choreography.Location.@)
+                         (AppT
+                           ListT
+                           (ConT GHC.Types.Int)
+                         )
+                       )
+                       (VarT c_6989586621679025465)
+                     )
+                   )
+                   (AppT
+                     (AppT
+                       (ConT Choreography.Choreo.Choreo)
+                       (ConT GHC.Types.IO)
+                     )
+                     (AppT
+                       (AppT
+                         (ConT Choreography.Location.@)
+                         (AppT
+                           ListT
+                           (ConT GHC.Types.Int)
+                         )
+                       )
+                       (VarT a_6989586621679025463)
+                     )
+                   )
+                 )
+               )
+             )
+           )
+         )
+       )
+
+The second one seems much easier to work with, and is the preferred one. We should write a little function that takes such a type, analyses it, and generates the specialisation rules.
+
 @-}
