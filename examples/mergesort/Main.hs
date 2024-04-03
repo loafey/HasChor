@@ -66,11 +66,9 @@ sort a b c lst = do
 {-# SPECIALISE forall . merge primary worker1 worker2 #-}
 {-# SPECIALISE forall . merge primary worker2 worker1 #-}
 merge ::
-  KnownSymbol a =>
+  (KnownSymbol a, KnownSymbol b, KnownSymbol c) =>
   Proxy a ->
-  KnownSymbol b =>
   Proxy b ->
-  KnownSymbol c =>
   Proxy c ->
   [Int] @ b ->
   [Int] @ c ->

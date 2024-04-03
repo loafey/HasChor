@@ -1,4 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Choreography.Rulegen where
 
@@ -9,13 +11,28 @@ import Language.Haskell.TH.Syntax
 compileFor :: Int -> [(String, (String, Int))] -> Q [Dec]
 compileFor endpoint config = do
   r <- mkRun endpoint config
-  return $ rewriteConvenience ++ mkProxies endpoints ++ mkLocallyRules endpoint' endpoints ++ mkSendRules endpoint' endpoints ++ mkCondRules endpoint' endpoints ++ r
+  return $ endpointlist endpoints ++ rewriteConvenience ++ mkProxies endpoints ++ mkLocallyRules endpoint' endpoints ++ mkSendRules endpoint' endpoints ++ mkCondRules endpoint' endpoints ++ r
   where
     endpoints :: [String]
     endpoints = map fst config
 
     endpoint' :: String
     endpoint' = endpoints !! endpoint
+
+handle :: String
+handle = "handle"
+
+endpointlist :: [String] -> [Dec]
+endpointlist endpoints =
+  [ SigD (mkName handle) eptype
+  , FunD (mkName handle) [Clause [] (NormalB (AppE (VarE (mkName "error")) (LitE $ StringL $ handle <> " should not be evaluated"))) []]
+  ]
+  where
+    epsAsTypes :: [Type]
+    epsAsTypes = map (\ep -> AppT (ConT (mkName "Proxy")) (LitT (StrTyLit ep))) endpoints
+
+    eptype :: Type
+    eptype | length epsAsTypes > 1 = foldr (\a b -> Arrow a b) (head epsAsTypes) (tail epsAsTypes)
 
 mkRun :: Int -> [(String, (String, Int))] -> Q [Dec]
 mkRun endpoint config = [d| run' choreo = runChoreography (mkHttpConfig $(lift config)) choreo $( lift $ fst (config !! endpoint)) >> return () |]
@@ -205,13 +222,76 @@ genSpec :: String -> Q [Dec]
 genSpec function = do
   i <- reify (mkName function)
   when (not $ isVarI i) (error "reify returned something that was not a value variable")
-  runIO $ putStrLn $ show i
+  let (VarI _ (ForallT _ ctx t) _) = i
+  runIO $ putStrLn "===== all parameters ====="
+  runIO $ putStrLn $ unlines $ map show $ allArgs t
+  runIO $ putStrLn "===== only proxies ===== "
+  runIO $ putStrLn $ unlines $ map show $ filter (isProxy . snd) $ allArgs t --i
+  runIO $ putStrLn  "===== Only KnownSymbol Constraints ====="
+  runIO $ putStrLn $ unlines $ map show $ filter (isKnownSymbol) $ ctx
+  runIO $ putStrLn "===== To Specialise ====="
+  runIO $ putStrLn $ unlines $ map show $ whichArgumentsToSpecialise i
+
+  exps <- allendpoints
+  runIO $ putStrLn $ show exps
 
   undefined
+
+-- | Take an Info value (assuming it is a VarI), and return a list of the positional parameters
+-- that should be specialised.
+whichArgumentsToSpecialise :: Info -> [(Int, Type)]
+whichArgumentsToSpecialise (VarI _ (ForallT vars ctx t) _) =
+  let proxyargs       = filter (isProxy . snd) $ allArgs t -- fetch all proxy parameters
+      knownsymbols    = filter isKnownSymbol ctx           -- fetch the known symbol constraints, indicating which are polymorphic
+      knownsymbolvars = map (\(KnownSymbolType v) -> v) knownsymbols
+  in filter (\(i, ProxyType v) -> v `elem` knownsymbolvars) proxyargs -- return those proxy parameters that should be specialised
+
+-- | Returns all potential endpoints as expressions
+allendpoints :: Q [Exp]
+allendpoints = do
+  i <- reify (mkName handle) -- we previously created a dummy function whose type will tell us what possible endpoints there are
+                             -- and here we read its type to retrieve the information
+  when (not $ isVarI i) (error "reify could not properly manage handle")
+
+  let VarI _ t _ = i
+      args = map snd $ allArgs t
+      argsAsExps = map (\(AppT _ (LitT (StrTyLit s))) -> s) args -- turn each endpoint (currently a type) into an expression
+  return $ map (VarE . mkName) argsAsExps
 
 isVarI :: Info -> Bool
 isVarI (VarI _ _ _) = True
 isVarI _            = False
+
+isProxy :: Type -> Bool
+isProxy (ProxyType _) = True
+isProxy _             = False
+
+isKnownSymbol :: Type -> Bool
+isKnownSymbol (KnownSymbolType _) = True
+isKnownSymbol _                   = False
+
+-- | Pattern synonym to have a nicer time working with function types
+pattern Arrow t1 t2 = AppT (AppT ArrowT t1) t2
+
+-- | Traverse a type and return a list of all the arguments to the function, as well as its
+-- position in the argument list
+allArgs :: Type -> [(Int, Type)]
+allArgs t = allArgs' t 0
+  where
+    allArgs' (Arrow t1 t2) n = (n,t1) : allArgs' t2 (n+1)
+    allArgs' t n = [(n,t)]
+
+-- | Pattern to see if something is a Proxy-something
+pattern ProxyType v = AppT (ConT (Name (OccName "Proxy") (NameG TcClsName (PkgName "ghc-internal") (ModName "GHC.Internal.Data.Proxy")))) (VarT v)
+
+-- | Pattern to match against a KnownSymbol constraint
+pattern KnownSymbolType v = AppT (ConT (Name (OccName "KnownSymbol") (NameG TcClsName (PkgName "ghc-internal") (ModName "GHC.Internal.TypeLits")))) (VarT v)
+
+enumer :: Int -> [a] -> [[a]]
+enumer 0 _ = []
+enumer 1 xs = map (\x -> [x]) xs
+enumer n xs = let ys = enumer (n-1) xs
+              in [ x : ys' | x <- xs, ys' <- ys]
 
 {-@
 
