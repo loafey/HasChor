@@ -16,16 +16,10 @@ $(compileFor 2 [ ("person1", ("localhost", 4242))
                , ("server",  ("localhost", 4345))
                ])
 
-{-# INLINE fixAndSend #-}
-fixAndSend :: (KnownSymbol l, Monad m, KnownSymbol l') => (Proxy l, String @ l) -> Proxy l' -> Choreo m (String @ l')
-fixAndSend (from, v) to = do
-  r <- locally from $ \un -> return $ un v ++ "crab"
-  (from, r) ~> to
-
 averageSalary :: Choreo IO (() @ "server")
 averageSalary = do
-  v1 <- locally person1 $ \_ -> return ("50kk" :: String)
-  r1 <- fixAndSend (person1, v1) server
+  v1 <- locally person1 $ \_ -> return "50"
+  r1 <- (person1, v1) ~> server
 
   v2 <- locally person2 $ \_ -> return "90"
   r2 <- (person2, v2) ~> server

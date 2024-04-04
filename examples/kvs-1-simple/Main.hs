@@ -21,7 +21,7 @@ import GHC.IORef (IORef (IORef))
 import GHC.TypeLits (KnownSymbol)
 import System.Environment
 
-$(compileFor 1 [ ("client", ("localhost", 3000))
+$(compileFor 0 [ ("client", ("localhost", 3000))
                , ("server", ("localhost", 4000))
                ])
 
@@ -89,17 +89,3 @@ mainChoreo = do
 
 main :: IO ()
 main = run' mainChoreo
-
--- main :: IO ()
--- main = do
---   [loc] <- getArgs
---   case loc of
---     "client" -> runChoreography config mainChoreo "client"
---     "server" -> runChoreography config mainChoreo "server"
---   return ()
---   where
---     config =
---       mkHttpConfig
---         [ ("client", ("localhost", 3000)),
---           ("server", ("localhost", 4000))
---         ]

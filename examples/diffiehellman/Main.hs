@@ -25,7 +25,7 @@ isPrime x = divisors x == [1, x]
 primeNums :: [Integer]
 primeNums = [x | x <- [2 ..], isPrime x]
 
-$( compileFor 1 [ ("alice", ("localhost", 5000))
+$( compileFor 0 [ ("alice", ("localhost", 5000))
                 , ("bob", ("localhost", 5001))
                 ])
 
@@ -76,17 +76,3 @@ diffieHellman = do
 
 main :: IO ()
 main = run' diffieHellman
-
--- main :: IO ()
--- main = do
---   [loc] <- getArgs
---   x <- case loc of
---     "alice" -> runChoreography config diffieHellman "alice"
---     "bob" -> runChoreography config diffieHellman "bob"
---   return ()
---   where
---     config =
---       mkHttpConfig
---         [ ("alice", ("localhost", 5000)),
---           ("bob", ("localhost", 5001))
---         ]

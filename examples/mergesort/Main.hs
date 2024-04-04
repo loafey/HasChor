@@ -32,8 +32,8 @@ $(compileFor 0         [ ("primary", ("localhost", 3000))
 {-# SPECIALISE forall . sort primary worker2 worker1 #-}
 {-# SPECIALISE forall . sort worker2 primary worker1 #-}
 {-# SPECIALISE forall . sort worker1 primary worker2 #-}
-{-# SPECIALISE forall . sort primary worker1 worker2 #-}
-{-# SPECIALISE forall . sort primary worker2 worker1 #-}
+{-# SPECIALISE forall . sort worker1 worker2 primary #-}
+{-# SPECIALISE forall . sort worker2 worker1 primary #-}
 sort ::
   KnownSymbol a =>
   Proxy a ->
@@ -103,9 +103,9 @@ merge a b c lhs rhs = do
     False -> do
       (c, rhs) ~> a
 
-newDeclarationGroup
+-- newDeclarationGroup
 
-$(genSpec "merge")
+-- $(genSpec "merge")
 
 -- $(do i <- reify (mkName "merge")
 --      runIO $ putStrLn $ show i

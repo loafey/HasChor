@@ -137,20 +137,3 @@ primaryBackupChoreo = do
 
 main :: IO ()
 main = run' $ primaryBackupChoreo
-
--- main :: IO ()
--- main = do
---   [loc] <- getArgs
---   case loc of
---     "client" -> runChoreography config mainChoreo "client"
---     "primary" -> runChoreography config mainChoreo "primary"
---     "backup" -> runChoreography config mainChoreo "backup"
---   return ()
---   where
---     mainChoreo = primaryBackupChoreo -- or `nullReplicationChoreo`
---     config =
---       mkHttpConfig
---         [ ("client", ("localhost", 3000)),
---           ("primary", ("localhost", 4000)),
---           ("backup", ("localhost", 5000))
---         ]

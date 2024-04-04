@@ -9,18 +9,18 @@ import Choreography
 import Choreography.Choreo
 import Choreography.Location
 import Choreography.Network.Local
-import Control.Concurrent.Async (async, mapConcurrently_, wait)
+-- import Control.Concurrent.Async (async, mapConcurrently_, wait)
 import Data.Proxy
 import GHC.TypeLits (KnownSymbol)
 import System.Environment
 
 import Control.Monad.Fix
 
--- * ROBERT: Does not work, as karatsuba is both location polymorphic and recursive
+-- still get some http error...
 
-$(compileFor 2 [ ("primary", ("primary", 4243))
-               , ("worker1", ("worker1", 4342))
-               , ("worker2", ("worker2", 4343))
+$(compileFor 0 [ ("primary", ("localhost", 4243))
+               , ("worker1", ("localhost", 4342))
+               , ("worker2", ("localhost", 4343))
                ])
 
 data KaratsubaNums = KaratsubaNums
@@ -31,7 +31,12 @@ data KaratsubaNums = KaratsubaNums
     l2 :: Integer
   }
 
-{-# INLINE karatsuba #-}
+{-# SPECIALISE forall . karatsuba primary worker1 worker2 #-}
+{-# SPECIALISE forall . karatsuba primary worker2 worker1 #-}
+{-# SPECIALISE forall . karatsuba worker1 primary worker2 #-}
+{-# SPECIALISE forall . karatsuba worker2 primary worker1 #-}
+{-# SPECIALISE forall . karatsuba worker1 worker2 primary #-}
+{-# SPECIALISE forall . karatsuba worker2 worker1 primary #-}
 karatsuba ::
   (KnownSymbol a, KnownSymbol b, KnownSymbol c) =>
   Proxy a ->
@@ -75,7 +80,6 @@ karatsuba a b c n1 n2 = do
               h2 = n2 `div` splitter
               l2 = n2 `mod` splitter
 
-{-# INLINE mainChoreo #-}
 mainChoreo :: Integer -> Integer -> Choreo IO ()
 mainChoreo n1 n2 = do
   n1 <- primary `locally` \_ -> return n1
@@ -90,12 +94,3 @@ main :: IO ()
 main = do
   [n1,n2] <- map read <$> getArgs
   run' (mainChoreo n1 n2)
-
--- main :: IO ()
--- main = do
---   [n1, n2] <- map read <$> getArgs
---   config <- mkLocalConfig locs
---   mapConcurrently_ (runChoreography config (mainChoreo n1 n2)) locs
---   return ()
---   where
---     locs = ["primary", "worker1", "worker2"]

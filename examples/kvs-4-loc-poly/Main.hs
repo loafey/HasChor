@@ -3,6 +3,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Main where
 
@@ -21,7 +22,7 @@ import GHC.IORef (IORef (IORef))
 import GHC.TypeLits (KnownSymbol)
 import System.Environment
 
-$(compileFor 0 [ ("client", ("localhost", 3000))
+$(compileFor 0 [ ("client",  ("localhost", 3000))
                , ("primary", ("localhost", 4000))
                , ("backup1", ("localhost", 5000))
                , ("backup2", ("localhost", 6000))
@@ -75,7 +76,18 @@ nullReplicationStrategy request stateRef = do
       state <- readIORef (unwrap stateRef)
       return (Map.lookup key state)
 
-{-# INLINE doBackup #-}
+{-# SPECIALISE forall . doBackup client primary  #-}
+{-# SPECIALISE forall . doBackup client backup1  #-}
+{-# SPECIALISE forall . doBackup client backup2  #-}
+{-# SPECIALISE forall . doBackup primary client  #-}
+{-# SPECIALISE forall . doBackup primary backup1 #-}
+{-# SPECIALISE forall . doBackup primary backup2 #-}
+{-# SPECIALISE forall . doBackup backup1 client  #-}
+{-# SPECIALISE forall . doBackup backup1 primary #-}
+{-# SPECIALISE forall . doBackup backup1 backup2 #-}
+{-# SPECIALISE forall . doBackup backup2 client  #-}
+{-# SPECIALISE forall . doBackup backup2 primary #-}
+{-# SPECIALISE forall . doBackup backup2 backup1 #-}
 -- | `doBackup` relays a mutating request to a backup location.
 doBackup ::
   KnownSymbol a =>
@@ -123,10 +135,13 @@ doubleBackupReplicationStrategy
 -- It uses the provided replication strategy to handle the request.
 kvs :: Request @ "client" -> a -> ReplicationStrategy a -> Choreo IO (Response @ "client")
 kvs request stateRefs replicationStrategy = do
+  primary `locally` \_ -> putStrLn "here"
   request' <- (client, request) ~> primary
+  primary `locally` \_ -> putStrLn "here2"
 
   -- call the provided replication strategy
   response <- replicationStrategy request' stateRefs
+  primary `locally` \_ -> putStrLn "here3"
 
   -- send response to client
   (primary, response) ~> client
@@ -174,22 +189,5 @@ doubleBackupChoreo = do
       loop stateRefs
 
 main :: IO ()
-main = run' primaryBackupChoreo
-
--- main :: IO ()
--- main = do
---   [loc] <- getArgs
---   case loc of
---     "client" -> runChoreography config primaryBackupChoreo "client"
---     "primary" -> runChoreography config primaryBackupChoreo "primary"
---     "backup1" -> runChoreography config primaryBackupChoreo "backup1"
---     "backup2" -> runChoreography config primaryBackupChoreo "backup2"
---   return ()
---   where
---     config =
---       mkHttpConfig
---         [ ("client", ("localhost", 3000)),
---           ("primary", ("localhost", 4000)),
---           ("backup1", ("localhost", 5000)),
---           ("backup2", ("localhost", 6000))
---         ]
+main = do
+  run' primaryBackupChoreo

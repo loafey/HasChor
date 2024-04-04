@@ -28,7 +28,6 @@ type Label = Int
 ringLeader :: Ring -> Choreo (StateT Label IO) ()
 ringLeader ring = loop ring
   where
-    {-# INLINE loop #-}
     loop :: Ring -> Choreo (StateT Label IO) ()
     loop []     = loop ring
     loop (x:xs) = do
@@ -37,7 +36,6 @@ ringLeader ring = loop ring
       then return ()
       else loop xs
 
-    {-# INLINE talkToRight #-}
     talkToRight :: Edge -> Choreo (StateT Label IO) Bool
     talkToRight (Edge left right) = do
       labelLeft  <- (left, \_ -> get) ~~> right
@@ -54,13 +52,12 @@ ringLeader ring = loop ring
           right `locally` \un -> put (max (un labelLeft) (un labelRight))
           return False
 
-$(compileFor 0 [ ("nodeA", ("nodeA", 4243))
-               , ("nodeB", ("nodeB", 4324))
-               , ("nodeC", ("nodeC", 4234))
-               , ("nodeD", ("nodeD", 4432))
+$(compileFor 0 [ ("nodeA", ("localhost", 4243))
+               , ("nodeB", ("localhost", 4324))
+               , ("nodeC", ("localhost", 4234))
+               , ("nodeD", ("localhost", 4432))
                ])
 
-{-# INLINE ring #-}
 ring = [ Edge nodeA nodeB
        , Edge nodeB nodeC
        , Edge nodeC nodeD

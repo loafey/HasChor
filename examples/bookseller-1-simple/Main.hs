@@ -10,7 +10,7 @@ import Data.Proxy
 import Data.Time
 import System.Environment
 
-$(compileFor 1 [ ("buyer", ("localhost", 4242))
+$(compileFor 0 [ ("buyer", ("localhost", 4242))
                , ("seller", ("localhost", 4343))
                ])
 
@@ -85,15 +85,3 @@ deliveryDateOf "Homotopy Type Theory"            = fromGregorian 2023 01 01
 
 main :: IO ()
 main = run' bookseller
-
--- main :: IO ()
--- main = do
---   [loc] <- getArgs
---   case loc of
---     "buyer"  -> runChoreography cfg bookseller' "buyer"
---     "seller" -> runChoreography cfg bookseller' "seller"
---   return ()
---   where
---     cfg = mkHttpConfig [ ("buyer",  ("localhost", 4242))
---                        , ("seller", ("localhost", 4343))
---                        ]

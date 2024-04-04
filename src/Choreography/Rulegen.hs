@@ -4,6 +4,7 @@
 
 module Choreography.Rulegen where
 
+import Data.List
 import Control.Monad
 
 import Language.Haskell.TH.Syntax
@@ -221,6 +222,7 @@ rewriteConvenience = [doubleArrow, condprime]
 genSpec :: String -> Q [Dec]
 genSpec function = do
   i <- reify (mkName function)
+  specialise (mkName function)
   when (not $ isVarI i) (error "reify returned something that was not a value variable")
   let (VarI _ (ForallT _ ctx t) _) = i
   runIO $ putStrLn "===== all parameters ====="
@@ -237,6 +239,20 @@ genSpec function = do
 
   undefined
 
+specialise :: Name -> Q [Dec]
+specialise n = do
+  i <- reify n
+  when (not $ isVarI i) (error "reify returned something that was not a value variable")
+  let all = allArgsI i
+      tospec = whichArgumentsToSpecialise i
+  endpoints <- allendpoints
+  let combinations = enumer (length tospec) endpoints
+
+  -- TODO FIXME: this is where we need to continue when the TH support exists for the new syntax.
+  -- all is all parameters, whereas tospec are those that should be replaced with all
+  -- enumerations in combinations.
+  undefined
+
 -- | Take an Info value (assuming it is a VarI), and return a list of the positional parameters
 -- that should be specialised.
 whichArgumentsToSpecialise :: Info -> [(Int, Type)]
@@ -244,7 +260,8 @@ whichArgumentsToSpecialise (VarI _ (ForallT vars ctx t) _) =
   let proxyargs       = filter (isProxy . snd) $ allArgs t -- fetch all proxy parameters
       knownsymbols    = filter isKnownSymbol ctx           -- fetch the known symbol constraints, indicating which are polymorphic
       knownsymbolvars = map (\(KnownSymbolType v) -> v) knownsymbols
-  in filter (\(i, ProxyType v) -> v `elem` knownsymbolvars) proxyargs -- return those proxy parameters that should be specialised
+      allproxies = filter (\(i, ProxyType v) -> v `elem` knownsymbolvars) proxyargs -- return those proxy parameters that should be specialised
+  in nubBy (\e1 e2 -> snd e1 == snd e2) allproxies
 
 -- | Returns all potential endpoints as expressions
 allendpoints :: Q [Exp]
@@ -273,10 +290,15 @@ isKnownSymbol _                   = False
 -- | Pattern synonym to have a nicer time working with function types
 pattern Arrow t1 t2 = AppT (AppT ArrowT t1) t2
 
+allArgsI :: Info -> [(Int, Type)]
+allArgsI (VarI _ t _) = allArgs t
+
 -- | Traverse a type and return a list of all the arguments to the function, as well as its
 -- position in the argument list
 allArgs :: Type -> [(Int, Type)]
-allArgs t = allArgs' t 0
+allArgs t = case t of
+  ForallT _ _ t -> allArgs' t 0
+  t -> allArgs' t 0
   where
     allArgs' (Arrow t1 t2) n = (n,t1) : allArgs' t2 (n+1)
     allArgs' t n = [(n,t)]
