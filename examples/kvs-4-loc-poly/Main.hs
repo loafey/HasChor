@@ -116,7 +116,7 @@ primaryBackupReplicationStrategy request (primaryStateRef, backupStateRef) = do
   -- relay request to backup if it is mutating (= PUT)
   primary `locally` \_ -> putStrLn "before doBackup"
   doBackup primary backup1 request backupStateRef
-  primary `locally` \_ -> putStrLn "after backup"
+  primary `locally` \_ -> putStrLn "after backup" -- NOTE: we never reach this print
 
   -- process request on primary
   primary `locally` \unwrap -> handleRequest (unwrap request) (unwrap primaryStateRef)
