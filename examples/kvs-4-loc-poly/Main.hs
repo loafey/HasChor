@@ -25,7 +25,7 @@ import System.Environment
 $(compileFor 0 [ ("client",  ("localhost", 3000))
                , ("primary", ("localhost", 4000))
                , ("backup1", ("localhost", 5000))
-               , ("backup2", ("localhost", 6000))
+              -- , ("backup2", ("localhost", 6000))
                ])
 
 type State = Map String String
@@ -65,29 +65,29 @@ handleRequest request stateRef = case request of
 -- `a` is a type that represent states across locations
 type ReplicationStrategy a = Request @ "primary" -> a -> Choreo IO (Response @ "primary")
 
--- | `nullReplicationStrategy` is a replication strategy that does not replicate the state.
-nullReplicationStrategy :: ReplicationStrategy (IORef State @ "primary")
-nullReplicationStrategy request stateRef = do
-  primary `locally` \unwrap -> case unwrap request of
-    Put key value -> do
-      modifyIORef (unwrap stateRef) (Map.insert key value)
-      return (Just value)
-    Get key -> do
-      state <- readIORef (unwrap stateRef)
-      return (Map.lookup key state)
+-- -- | `nullReplicationStrategy` is a replication strategy that does not replicate the state.
+-- nullReplicationStrategy :: ReplicationStrategy (IORef State @ "primary")
+-- nullReplicationStrategy request stateRef = do
+--   primary `locally` \unwrap -> case unwrap request of
+--     Put key value -> do
+--       modifyIORef (unwrap stateRef) (Map.insert key value)
+--       return (Just value)
+--     Get key -> do
+--       state <- readIORef (unwrap stateRef)
+--       return (Map.lookup key state)
 
 {-# SPECIALISE forall . doBackup client primary  #-}
 {-# SPECIALISE forall . doBackup client backup1  #-}
-{-# SPECIALISE forall . doBackup client backup2  #-}
+-- {-# SPECIALISE forall . doBackup client backup2  #-}
 {-# SPECIALISE forall . doBackup primary client  #-}
 {-# SPECIALISE forall . doBackup primary backup1 #-}
-{-# SPECIALISE forall . doBackup primary backup2 #-}
+-- {-# SPECIALISE forall . doBackup primary backup2 #-}
 {-# SPECIALISE forall . doBackup backup1 client  #-}
 {-# SPECIALISE forall . doBackup backup1 primary #-}
-{-# SPECIALISE forall . doBackup backup1 backup2 #-}
-{-# SPECIALISE forall . doBackup backup2 client  #-}
-{-# SPECIALISE forall . doBackup backup2 primary #-}
-{-# SPECIALISE forall . doBackup backup2 backup1 #-}
+-- {-# SPECIALISE forall . doBackup backup1 backup2 #-}
+-- {-# SPECIALISE forall . doBackup backup2 client  #-}
+-- {-# SPECIALISE forall . doBackup backup2 primary #-}
+-- {-# SPECIALISE forall . doBackup backup2 backup1 #-}
 -- | `doBackup` relays a mutating request to a backup location.
 doBackup ::
   KnownSymbol a =>
@@ -101,35 +101,40 @@ doBackup locA locB request stateRef = do
   cond (locA, request) \case
     Put _ _ -> do
       request' <- (locA, request) ~> locB
-      (locB, \unwrap -> handleRequest (unwrap request') (unwrap stateRef))
-        ~~> locA
+      res <- locB `locally` \unwrap -> handleRequest (unwrap request') (unwrap stateRef)
+      (locB, res) ~> locA
+--      (locB, \unwrap -> handleRequest (unwrap request') (unwrap stateRef))
+--        ~~> locA
       return ()
     _ -> do
+      primary `locally` \_ -> putStrLn "inside doBackup"
       return ()
 
 -- | `primaryBackupReplicationStrategy` is a replication strategy that replicates the state to a backup server.
 primaryBackupReplicationStrategy :: ReplicationStrategy (IORef State @ "primary", IORef State @ "backup1")
 primaryBackupReplicationStrategy request (primaryStateRef, backupStateRef) = do
   -- relay request to backup if it is mutating (= PUT)
+  primary `locally` \_ -> putStrLn "before doBackup"
   doBackup primary backup1 request backupStateRef
+  primary `locally` \_ -> putStrLn "after backup"
 
   -- process request on primary
   primary `locally` \unwrap -> handleRequest (unwrap request) (unwrap primaryStateRef)
 
--- | `doubleBackupReplicationStrategy` is a replication strategy that replicates the state to two backup servers.
-doubleBackupReplicationStrategy ::
-  ReplicationStrategy
-    (IORef State @ "primary", IORef State @ "backup1", IORef State @ "backup2")
-doubleBackupReplicationStrategy
-  request
-  (primaryStateRef, backup1StateRef, backup2StateRef) = do
-    -- relay to two backup locations
-    doBackup primary backup1 request backup1StateRef
-    doBackup primary backup2 request backup2StateRef
+-- -- | `doubleBackupReplicationStrategy` is a replication strategy that replicates the state to two backup servers.
+-- doubleBackupReplicationStrategy ::
+--   ReplicationStrategy
+--     (IORef State @ "primary", IORef State @ "backup1", IORef State @ "backup2")
+-- doubleBackupReplicationStrategy
+--   request
+--   (primaryStateRef, backup1StateRef, backup2StateRef) = do
+--     -- relay to two backup locations
+--     doBackup primary backup1 request backup1StateRef
+--     doBackup primary backup2 request backup2StateRef
 
-    -- process request on primary
-    primary `locally` \unwrap ->
-      handleRequest (unwrap request) (unwrap primaryStateRef)
+--     -- process request on primary
+--     primary `locally` \unwrap ->
+--       handleRequest (unwrap request) (unwrap primaryStateRef)
 
 -- | `kvs` is a choreography that processes a single request at the client and returns the response.
 -- It uses the provided replication strategy to handle the request.
@@ -141,23 +146,23 @@ kvs request stateRefs replicationStrategy = do
 
   -- call the provided replication strategy
   response <- replicationStrategy request' stateRefs
-  primary `locally` \_ -> putStrLn "here3"
+  primary `locally` \_ -> putStrLn (show $ unwrap response) >> putStrLn "here3"
 
   -- send response to client
   (primary, response) ~> client
 
--- | `nullReplicationChoreo` is a choreography that uses `nullReplicationStrategy`.
-nullReplicationChoreo :: Choreo IO ()
-nullReplicationChoreo = do
-  stateRef <- primary `locally` \_ -> newIORef (Map.empty :: State)
-  loop stateRef
-  where
-    loop :: IORef State @ "primary" -> Choreo IO ()
-    loop stateRef = do
-      request <- client `locally` \_ -> readRequest
-      response <- kvs request stateRef nullReplicationStrategy
-      client `locally` \unwrap -> do putStrLn (show (unwrap response))
-      loop stateRef
+-- -- | `nullReplicationChoreo` is a choreography that uses `nullReplicationStrategy`.
+-- nullReplicationChoreo :: Choreo IO ()
+-- nullReplicationChoreo = do
+--   stateRef <- primary `locally` \_ -> newIORef (Map.empty :: State)
+--   loop stateRef
+--   where
+--     loop :: IORef State @ "primary" -> Choreo IO ()
+--     loop stateRef = do
+--       request <- client `locally` \_ -> readRequest
+--       response <- kvs request stateRef nullReplicationStrategy
+--       client `locally` \unwrap -> do putStrLn (show (unwrap response))
+--       loop stateRef
 
 -- | `primaryBackupChoreo` is a choreography that uses `primaryBackupReplicationStrategy`.
 primaryBackupChoreo :: Choreo IO ()
@@ -173,20 +178,20 @@ primaryBackupChoreo = do
       client `locally` \unwrap -> do putStrLn (show (unwrap response))
       loop stateRefs
 
--- | `doubleBackupChoreo` is a choreography that uses `doubleBackupReplicationStrategy`.
-doubleBackupChoreo :: Choreo IO ()
-doubleBackupChoreo = do
-  primaryStateRef <- primary `locally` \_ -> newIORef (Map.empty :: State)
-  backup1StateRef <- backup1 `locally` \_ -> newIORef (Map.empty :: State)
-  backup2StateRef <- backup2 `locally` \_ -> newIORef (Map.empty :: State)
-  loop (primaryStateRef, backup1StateRef, backup2StateRef)
-  where
-    loop :: (IORef State @ "primary", IORef State @ "backup1", IORef State @ "backup2") -> Choreo IO ()
-    loop stateRefs = do
-      request <- client `locally` \_ -> readRequest
-      response <- kvs request stateRefs doubleBackupReplicationStrategy
-      client `locally` \unwrap -> do putStrLn ("> " ++ show (unwrap response))
-      loop stateRefs
+-- -- | `doubleBackupChoreo` is a choreography that uses `doubleBackupReplicationStrategy`.
+-- doubleBackupChoreo :: Choreo IO ()
+-- doubleBackupChoreo = do
+--   primaryStateRef <- primary `locally` \_ -> newIORef (Map.empty :: State)
+--   backup1StateRef <- backup1 `locally` \_ -> newIORef (Map.empty :: State)
+--   backup2StateRef <- backup2 `locally` \_ -> newIORef (Map.empty :: State)
+--   loop (primaryStateRef, backup1StateRef, backup2StateRef)
+--   where
+--     loop :: (IORef State @ "primary", IORef State @ "backup1", IORef State @ "backup2") -> Choreo IO ()
+--     loop stateRefs = do
+--       request <- client `locally` \_ -> readRequest
+--       response <- kvs request stateRefs doubleBackupReplicationStrategy
+--       client `locally` \unwrap -> do putStrLn ("> " ++ show (unwrap response))
+--       loop stateRefs
 
 main :: IO ()
 main = do

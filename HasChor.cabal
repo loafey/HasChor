@@ -23,6 +23,7 @@ library
         Choreography.Network.Local
         Choreography.Rulegen
         Control.Monad.Freer
+--        Plugin
     build-depends:
         base,
         bytestring,
@@ -33,16 +34,17 @@ library
         unordered-containers,
         warp,
         template-haskell
+--        ghc
 
-executable bank-2pc
-    hs-source-dirs:   examples/bank-2pc
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        HasChor2,
-        base,
-        time,
-        split
+-- executable bank-2pc
+--     hs-source-dirs:   examples/bank-2pc
+--     main-is:          Main.hs
+--     default-language: GHC2021
+--     build-depends:
+--         HasChor2,
+--         base,
+--         time,
+--         split
 
 executable bookseller-0-network
     hs-source-dirs:   examples/bookseller-0-network
