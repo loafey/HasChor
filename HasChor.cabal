@@ -161,7 +161,8 @@ executable kvs4
         base,
         time,
         containers
-    ghc-options: -ddump-splices -ddump-rule-firings -O3
+    ghc-options: -ddump-splices -ddump-rule-firings
+   -- -fllvm -keep-llvm-files
 
 executable mergesort
     hs-source-dirs:   examples/mergesort
@@ -182,6 +183,7 @@ executable tricky
     build-depends:
         HasChor2,
         base,
+        containers
     ghc-options: -ddump-splices -ddump-rule-firings -O3
 
 executable quicksort

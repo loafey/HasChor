@@ -21,8 +21,9 @@ import Data.Proxy
 import GHC.IORef (IORef (IORef))
 import GHC.TypeLits (KnownSymbol)
 import System.Environment
+import System.IO.Unsafe
 
-$(compileFor 0 [ ("client",  ("localhost", 3000))
+$(compileFor 1 [ ("client",  ("localhost", 3000))
                , ("primary", ("localhost", 4000))
                , ("backup1", ("localhost", 5000))
               -- , ("backup2", ("localhost", 6000))
@@ -76,14 +77,14 @@ type ReplicationStrategy a = Request @ "primary" -> a -> Choreo IO (Response @ "
 --       state <- readIORef (unwrap stateRef)
 --       return (Map.lookup key state)
 
-{-# SPECIALISE forall . doBackup client primary  #-}
-{-# SPECIALISE forall . doBackup client backup1  #-}
+--{-# SPECIALISE forall . doBackup client primary  #-}
+--{-# SPECIALISE forall . doBackup client backup1  #-}
 -- {-# SPECIALISE forall . doBackup client backup2  #-}
-{-# SPECIALISE forall . doBackup primary client  #-}
+--{-# SPECIALISE forall . doBackup primary client  #-}
 {-# SPECIALISE forall . doBackup primary backup1 #-}
 -- {-# SPECIALISE forall . doBackup primary backup2 #-}
-{-# SPECIALISE forall . doBackup backup1 client  #-}
-{-# SPECIALISE forall . doBackup backup1 primary #-}
+--{-# SPECIALISE forall . doBackup backup1 client  #-}
+--{-# SPECIALISE forall . doBackup backup1 primary #-}
 -- {-# SPECIALISE forall . doBackup backup1 backup2 #-}
 -- {-# SPECIALISE forall . doBackup backup2 client  #-}
 -- {-# SPECIALISE forall . doBackup backup2 primary #-}
@@ -96,18 +97,23 @@ doBackup ::
   Proxy b ->
   Request @ a ->
   IORef State @ b ->
-  Choreo IO ()
+  Choreo IO () -- (() @ "primary")
+-- doBackup ::
+--   Proxy "primary" ->
+--   Proxy "backup1" ->
+--   Request @ "primary" ->
+--   IORef State @ "backup1" ->
+--   Choreo IO ()
 doBackup locA locB request stateRef = do
   cond (locA, request) \case
     Put _ _ -> do
       request' <- (locA, request) ~> locB
       res <- locB `locally` \unwrap -> handleRequest (unwrap request') (unwrap stateRef)
       (locB, res) ~> locA
---      (locB, \unwrap -> handleRequest (unwrap request') (unwrap stateRef))
---        ~~> locA
+      primary `locally` \_ -> putStrLn "inside PUT"
       return ()
     _ -> do
-      primary `locally` \_ -> putStrLn "inside doBackup"
+      primary `locally` \_ -> putStrLn "inside GET"
       return ()
 
 -- | `primaryBackupReplicationStrategy` is a replication strategy that replicates the state to a backup server.
@@ -140,13 +146,13 @@ primaryBackupReplicationStrategy request (primaryStateRef, backupStateRef) = do
 -- It uses the provided replication strategy to handle the request.
 kvs :: Request @ "client" -> a -> ReplicationStrategy a -> Choreo IO (Response @ "client")
 kvs request stateRefs replicationStrategy = do
-  primary `locally` \_ -> putStrLn "here"
+  --primary `locally` \_ -> putStrLn "here"
   request' <- (client, request) ~> primary
-  primary `locally` \_ -> putStrLn "here2"
+  --primary `locally` \_ -> putStrLn "here2"
 
   -- call the provided replication strategy
   response <- replicationStrategy request' stateRefs
-  primary `locally` \_ -> putStrLn (show $ unwrap response) >> putStrLn "here3"
+  -- primary `locally` \_ -> putStrLn (show $ unwrap response) >> putStrLn "here3"
 
   -- send response to client
   (primary, response) ~> client
