@@ -1,2 +1,2 @@
 packages: HasChor.cabal
-with-compiler: /home/robert/ghc/_build/stage1/bin/ghc
+with-compiler: /home/loafey/Git/HasChor/ghc/_build/stage1/bin/ghc
