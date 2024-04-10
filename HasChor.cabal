@@ -194,8 +194,8 @@ executable tricky
         containers
     ghc-options: -ddump-splices -ddump-rule-firings -O3
 
-executable sampy
-    hs-source-dirs:   examples/sampy
+executable oauth2
+    hs-source-dirs:   examples/oauth2
     main-is:          Main.hs
     default-language: GHC2021
     build-depends:
