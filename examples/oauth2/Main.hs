@@ -27,8 +27,6 @@ import Data.ByteString qualified as BS
 
 -- Impl OAuth2
 
--- * ROBERT: Does not work, as sort and merge are both location polymorphic and recursive
-
 $(compileFor 0 [ ("app", ("localhost", 3000))
                , ("server", ("localhost", 4000))
                ])
@@ -98,10 +96,10 @@ mainChoreo = do
   grant <- finishAuthRequest callback
   
   -- 4. send authgrant to server
-  accessTok <- sendGrantToServer grant  
+  accessTokServ <- sendGrantToServer grant  
   
   -- 5. Send accessTok to app
-  accessTok <- (server, accessTok) ~> app
+  accessTok <- (server, accessTokServ) ~> app
   
   -- app loop (n -> n+1)
   app `locally` \unwrap -> putStrLn $ 
