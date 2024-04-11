@@ -41,20 +41,13 @@ startCallbackServer c = forkIO $ scotty 8000 $
       liftIO $ Chan.writeChan c auth
       html "auth granted"
 
--- {-# SPECIALISE forall . sort primary worker1 worker2 #-}
--- {-# SPECIALISE forall . sort primary worker2 worker1 #-}
--- {-# SPECIALISE forall . sort worker2 primary worker1 #-}
--- {-# SPECIALISE forall . sort worker1 primary worker2 #-}
--- {-# SPECIALISE forall . sort worker1 worker2 primary #-}
-mainChoreo :: Choreo IO ()
-mainChoreo = do
-  -- create callback server in app
+startAuthRequest = do
   authChan <- app `locally` \unwrap -> newChan :: IO (Chan String)
   callbackServer <- app `locally` \unwrap -> do
     startCallbackServer (unwrap authChan)
+  pure (authChan, callbackServer)
 
-  -- send auth request to user, pretend this is a webbrowser :)
-  app `locally` \unwrap -> do 
+startUserInput = app `locally` \unwrap -> do 
     -- TODO replace this with a webinterface
     putStrLn "<input type=\"text\" placeholder=\"log in please :)\">"
     ans <- BS.getLine
@@ -64,25 +57,48 @@ mainChoreo = do
     let req' = req{ H.method = "POST" }
     H.httpLbs req' httpman
 
+finishAuthRequest (authChan, callbackServer) = do
   -- get grant code from callback server  
-  grant <- app `locally` \unwrap -> do
+  app `locally` \unwrap -> do
     ans <- Chan.readChan (unwrap authChan)
     putStrLn "APP: Killing callback server"
     let cs = unwrap callbackServer
     killThread cs
     pure ans
+
+sendGrantToServer grant = do
+  grant <- (app, grant) ~> server
+  server `locally` \unwrap -> do
+    putStrLn $ "SERVER: got grant token: " <> show (unwrap grant)
+    randomRIO $ (0,1000000 :: Int)
   
+
+
+-- {-# SPECIALISE forall . sort primary worker1 worker2 #-}
+-- {-# SPECIALISE forall . sort primary worker2 worker1 #-}
+-- {-# SPECIALISE forall . sort worker2 primary worker1 #-}
+-- {-# SPECIALISE forall . sort worker1 primary worker2 #-}
+-- {-# SPECIALISE forall . sort worker1 worker2 primary #-}
+mainChoreo :: Choreo IO ()
+mainChoreo = do
+  -- create callback server in app
+  callback <- startAuthRequest
+
+  -- send auth request to user, pretend this is a webbrowser :)
+  startUserInput
+
+  -- get grant code from callback server  
+  grant <- finishAuthRequest callback
   
   -- send authgrant to server
-  grant <- (app, grant) ~> server
-  accessTok <- server `locally` \unwrap -> do
-    putStrLn $ "Server: got grant token: " <> show (unwrap grant)
-    randomRIO $ (0,1000000 :: Int)
+  accessTok <- sendGrantToServer grant
   
   -- Send accessTok to app
   accessTok <- (server, accessTok) ~> app
-  app `locally` \unwrap -> do
-    putStrLn $ "App: got access token: " <> show (unwrap accessTok)
+
+  -- app loop
+  app `locally` \unwrap -> putStrLn $ 
+    "App: got access token: " <> show (unwrap accessTok)
   
 
   return ()
