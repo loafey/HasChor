@@ -10,7 +10,7 @@ import Choreography
 import Choreography.Choreo
 import Choreography.Location
 import Choreography.Network
-import Choreography.Network.Http
+import Choreography.Network.Tcp
 import Control.Monad.Freer
 import Data.Proxy
 import Data.Time
@@ -24,20 +24,24 @@ import Control.Concurrent.Chan (Chan)
 import Control.Concurrent.Chan qualified as Chan
 import Network.HTTP.Client qualified as H
 import Data.ByteString qualified as BS
+import Secrets qualified as S
+import Web.Browser
 
 -- Impl OAuth2
+
+$S.loadSecrets
 
 $(compileFor 0 [ ("app", ("localhost", 3000))
                , ("server", ("localhost", 4000))
                ])
 
 startCallbackServer :: Chan String ->  IO ThreadId
-startCallbackServer c = forkIO $ scotty 8000 $
-    post "/oauth" $ do
-      auth <- param "auth"
-      liftIO . putStrLn $ "APP: (Callback) got authcode code: " <> auth
+startCallbackServer c = forkIO $ scotty 8080 $
+    get "/oauth" $ do
+      auth <- param "code"
+      liftIO . putStrLn $ "APP: (Callback) got code: " <> auth
+      html "auth granted, you can close this"
       liftIO $ Chan.writeChan c auth
-      html "auth granted"
 
 startAuthRequest :: Choreo IO (Chan String @ "app", ThreadId @ "app")
 startAuthRequest = do
@@ -47,15 +51,13 @@ startAuthRequest = do
   pure (authChan, callbackServer)
 
 startUserInput :: Choreo IO (() @ "app")
-startUserInput = app `locally` \unwrap -> do 
-  -- TODO replace this with a webinterface
-  putStrLn "<input type=\"text\" placeholder=\"log in please :)\">"
-  ans <- BS.getLine
-
-  httpman <- H.newManager H.defaultManagerSettings
-  let req = H.setQueryString [("auth", Just ans)] "http://localhost:8000/oauth"
-  let req' = req{ H.method = "POST" }
-  H.httpLbs req' httpman
+startUserInput = app `locally` \unwrap -> do
+  openBrowser $ concat 
+    [ "https://mastodon.social/oauth/authorize"
+    , "?response_type=code"
+    , "&client_id=" <> clientId
+    , "&redirect_uri=http://localhost:8080/oauth"
+    ] 
   pure ()
 
 
@@ -66,7 +68,9 @@ finishAuthRequest (authChan, callbackServer) = do
     ans <- Chan.readChan (unwrap authChan)
     putStrLn "APP: Killing callback server"
     let cs = unwrap callbackServer
-    killThread cs
+    forkIO $ do
+      threadDelay 10000
+      killThread cs
     pure ans
 
 sendGrantToServer :: String @ "app" -> Choreo IO (Int @ "server")
@@ -85,25 +89,38 @@ sendGrantToServer grant = do
 -- {-# SPECIALISE forall . sort worker1 worker2 primary #-}
 mainChoreo :: Choreo IO ()
 mainChoreo = do
-  -- 0. create callback server in app
-  callback <- startAuthRequest
-  
-  -- 1. send auth request to user, pretend this is a webbrowser :)
-  -- 2. Forward the user to the callback server
-  startUserInput
+  -- -1. tcp testing thing :)
+  val <- app `locally` \unwrap -> do
+    num <- randomRIO (0,100 :: Int)
+    pure $ "Hello from TCP: " <> show num
+  app `locally` \unwrap -> do
+    let val' = unwrap val
+    print val'
+  valServer <- (app, val) ~> server
+  server `locally` \unwrap -> do
+    let val = unwrap valServer
+    print val
 
-  -- 3. get grant code from callback server  
-  grant <- finishAuthRequest callback
-  
-  -- 4. send authgrant to server
-  accessTokServ <- sendGrantToServer grant  
-  
-  -- 5. Send accessTok to app
-  accessTok <- (server, accessTokServ) ~> app
-  
-  -- app loop (n -> n+1)
-  app `locally` \unwrap -> putStrLn $ 
-    "App: got access token: " <> show (unwrap accessTok)
+
+  -- -- 0. create callback server in app
+  -- callback <- startAuthRequest
+  -- 
+  -- -- 1. send auth request to user, pretend this is a webbrowser :)
+  -- -- 2. Forward the user to the callback server
+  -- startUserInput
+-- 
+  -- -- 3. get grant code from callback server  
+  -- grant <- finishAuthRequest callback
+  -- 
+  -- -- 4. send authgrant to server
+  -- accessTokServ <- sendGrantToServer grant  
+  -- 
+  -- -- 5. Send accessTok to app
+  -- accessTok <- (server, accessTokServ) ~> app
+  -- 
+  -- -- app loop (n -> n+1)
+  -- app `locally` \unwrap -> putStrLn $ 
+  --   "App: got access token: " <> show (unwrap accessTok)
   
 
   return ()

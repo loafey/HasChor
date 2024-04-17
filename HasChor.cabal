@@ -25,6 +25,7 @@ library
         Choreography.Location,
         Choreography.Network,
         Choreography.Network.Http
+        Choreography.Network.Tcp
         Choreography.Network.Local
         Choreography.Rulegen
         Control.Monad.Freer
@@ -38,7 +39,8 @@ library
         servant-server,
         unordered-containers,
         warp,
-        template-haskell
+        template-haskell,
+        network
 --        ghc
 
 -- executable bank-2pc
@@ -198,6 +200,7 @@ executable oauth2
     hs-source-dirs:   examples/oauth2
     main-is:          Main.hs
     default-language: GHC2021
+    exposed-modules: Secrets
     build-depends:
         HasChor2,
         base,
@@ -207,7 +210,8 @@ executable oauth2
         random,
         scotty,
         http-client,
-        bytestring
+        bytestring,
+        open-browser
 
 executable quicksort
     hs-source-dirs:   examples/quicksort

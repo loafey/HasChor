@@ -36,7 +36,7 @@ endpointlist endpoints =
     eptype | length epsAsTypes > 1 = foldr (\a b -> Arrow a b) (head epsAsTypes) (tail epsAsTypes)
 
 mkRun :: Int -> [(String, (String, Int))] -> Q [Dec]
-mkRun endpoint config = [d| run' choreo = runChoreography (mkHttpConfig $(lift config)) choreo $( lift $ fst (config !! endpoint)) >> return () |]
+mkRun endpoint config = [d| run' choreo = runChoreography (mkTcpConfig $(lift config)) choreo $( lift $ fst (config !! endpoint)) >> return () |]
 
 mkProxies :: [String] -> [Dec]
 mkProxies = concatMap (\ep -> [mkSig ep, mkTerm ep])
