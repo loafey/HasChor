@@ -40,7 +40,8 @@ library
         unordered-containers,
         warp,
         template-haskell,
-        network
+        network,
+        network-run
 --        ghc
 
 -- executable bank-2pc

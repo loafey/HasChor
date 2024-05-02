@@ -10,7 +10,7 @@ module Choreography.Network.Tcp where
 
 import Choreography.Location
 import Choreography.Network hiding (run)
-import Data.ByteString (fromStrict, null, ByteString)
+import Data.ByteString (fromStrict, null, ByteString, length, pack, unpack)
 import Data.ByteString.Char8 (unpack)
 import Data.String (fromString)
 import Data.Proxy (Proxy(..))
@@ -25,6 +25,7 @@ import Control.Monad.IO.Class
 import Network.Socket
 import Debug.Trace
 import Network.Socket.ByteString (recv, sendAll)
+import Network.Run.TCP
 import qualified Control.Exception as E
 
 -- * Http configuration
@@ -34,21 +35,20 @@ import qualified Control.Exception as E
 data TcpConfig = TcpConfig
   { locToUrl :: HashMap LocTm Addr
   , urlToLoc :: HashMap String LocTm -- disgusting hack
-  }
+  } deriving Show
 
 type Host = String
 type Port = Int
-type Addr = SockAddr
+type Addr = (Host, Port)
 
 
 -- | Create a TCP backend configuration from a association list that maps
 -- locations to network hosts and ports.
 mkTcpConfig :: [(LocTm, (Host, Port))] -> TcpConfig
 mkTcpConfig l = TcpConfig 
-    (HashMap.fromList $ fmap (fmap addrToSock) l)
-    (HashMap.fromList $ map (\(a,b) -> (show b,a)) $ fmap (fmap addrToSock) l)
+    (HashMap.fromList $ l)
+    (HashMap.fromList $ map (\(a,b) -> (show b,a)) $ l)
   where
-    addrToSock = \(h, p) -> SockAddrInet (fromIntegral p) (addrFixer h)
     addrFixer "localhost" = tupleToHostAddress (7, 0, 0, 127)
     addrFixer addr = do
       let [a,b,c,d] = read <$> split "" addr '.'
@@ -99,65 +99,27 @@ runNetworkTcp cfg self prog = do
         handler (BCast a)  = mapM_ handler $ fmap (Send a) (locs cfg)
 
     sendClient :: ByteString -> Addr -> IO (Either String ())
-    sendClient msg addr = do
-      runTCPClient addr $ \s -> do
+    sendClient msg (host, port) = do
+      runTCPClient host (show port) $ \s -> do
+        sendAll s $ Data.ByteString.pack [fromIntegral $ Data.ByteString.length msg]
         sendAll s msg
-        pure . pure $ ()
-      where
-        runTCPClient :: SockAddr -> (Socket -> IO a) -> IO a
-        runTCPClient addr client = withSocketsDo $ do
-            addr <- traceShowId <$> resolve
-            E.bracket (open addr) close client
-          where
-            resolve = do
-              let hints = defaultHints { addrSocketType = Stream }
-              addrInfo hints addr
-            open addr = E.bracketOnError (openSocket addr) close $ \sock -> do
-              connect sock $ addrAddress addr
-              return sock
+      pure . pure $ ()
 
     recvClient :: TcpConfig -> RecvChans -> IO ()
-    recvClient cfg chans = run
+    recvClient cfg chans = runTCPServer (Just "localhost") (show . snd $ locToUrl cfg ! self) serve
       where 
         serve s = do
-          msg <- Network.Socket.ByteString.recv s 1024
+          putStrLn "waiting for message"
+          len <- Network.Socket.ByteString.recv s 1
+          let l = fromIntegral . head . Data.ByteString.unpack $ len
+          msg <- Network.Socket.ByteString.recv s l
           unless (Data.ByteString.null msg) $ do
-            putStrLn "Handling message..."
             addr <- getSocketName s
-            putStrLn $ "Addr: " <> show addr
-            liftIO $ writeChan (chans ! ((urlToLoc cfg) ! (show addr))) (unpack msg)
-            serve s
+            liftIO $ writeChan 
+              (chans ! ((urlToLoc cfg) ! (show addr))) 
+              (Data.ByteString.Char8.unpack msg)
 
-        addr = locToUrl cfg ! self 
 
-        resolve = do
-          let hints = defaultHints 
-                { addrFlags = [AI_PASSIVE]
-                , addrSocketType = Stream
-                }
-          addrInfo hints addr
-
-        run = withSocketsDo $ do
-          addr <- traceShowId <$> resolve
-          E.bracket (open addr) close loop
-
-        open addr = E.bracketOnError (openSocket addr) close $ \sock -> do
-          setSocketOption sock ReuseAddr 1
-          withFdSocket sock setCloseOnExecIfNeeded
-          bind sock $ addrAddress addr
-          listen sock 1024
-          return sock
-
-        loop sock = forever $ E.bracketOnError (accept sock) (close . fst)
-          $ \(conn, _peer) -> void $
-            forkFinally (serve conn) (const $ gracefulClose conn 5000)
-          
-addrInfo hints addr = head <$> ((uncurry $ getAddrInfo (Just hints)) $ stinkify addr)
-  where 
-    stinkify = \case
-      SockAddrInet port host -> (Just . show $ host, Just . show $ port)
-      SockAddrInet6 port _ host _	 -> (Just . show $ host, Just . show $ port)
-      SockAddrUnix _ -> (Nothing, Nothing)
 
 instance Backend TcpConfig where
   runNetwork = runNetworkTcp
