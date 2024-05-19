@@ -235,3 +235,14 @@ executable ring-leader
         base,
         transformers
     ghc-options: -ddump-splices -ddump-rule-firings -O3
+
+executable botan
+    hs-source-dirs:   examples/botan
+    main-is:          Main.hs
+    default-language: GHC2021
+    build-depends:
+        HasChor2,
+        base,
+        transformers,
+        botan-bindings
+    ghc-options: -ddump-splices -ddump-rule-firings -O3
